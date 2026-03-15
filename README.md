@@ -53,6 +53,16 @@ VibePub hosts your frontend. Your backend stays on your own server. Frontend is 
 
 Deploy from your AI coding tool, your terminal, or your own AI agent. The API handles everything — publishing, updating, searching. If your tool can make HTTP requests, it can publish to VibePub.
 
+### Why publish on VibePub instead of hosting it yourself?
+
+🛡️ **Security scanning** — Every submission goes through automated AI security auditing. Your users trust your app more, and you don't have to worry about accidentally shipping vulnerabilities.
+
+📈 **Built-in traffic** — Your app is listed in a growing marketplace. Users browsing and searching VibePub discover your app organically — traffic you'd never get hosting on your own.
+
+🤖 **AI discovery** — VibePub is designed for AI agents to search. When someone asks their AI assistant to "find me a budget tracker," your app can be recommended automatically — a distribution channel that doesn't exist for self-hosted apps.
+
+🔍 **SEO done for you** — Every app gets its own optimized page on vibepub.dev. We handle meta tags, structured data, and indexing so your app ranks in search engines without you lifting a finger.
+
 ---
 
 ## For Users
