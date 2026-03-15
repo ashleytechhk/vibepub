@@ -1,0 +1,19 @@
+{
+  "name": "vibepub",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev api/src/index.ts",
+    "deploy": "wrangler deploy api/src/index.ts",
+    "db:migrate:local": "wrangler d1 execute vibepub-db --local --file=api/migrations/0001_init.sql",
+    "db:migrate:remote": "wrangler d1 execute vibepub-db --remote --file=api/migrations/0001_init.sql"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "wrangler": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello from VibePub!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🍺 Hello from VibePub!</h1>
+            <p class="tagline">This is a test app deployed on VibePub.</p>
+            <div class="info">
+                <p>If you can see this page, the deployment pipeline is working!</p>
+                <p class="tech">Built with ❤️ and deployed via <a href="https://vibepub.dev">vibepub.dev</a></p>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-value" id="time"></span>
+                    <span class="stat-label">Current Time</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">v1.0</span>
+                    <span class="stat-label">Version</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function updateTime() {
+            document.getElementById('time').textContent = new Date().toLocaleTimeString();
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>

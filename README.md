@@ -8,7 +8,7 @@
   <a href="https://vibepub.dev">Website</a> ·
   <a href="#what-is-vibepub">What is VibePub?</a> ·
   <a href="#for-developers">For Developers</a> ·
-  <a href="#roadmap">Roadmap</a> ·
+  <a href="#for-users">For Users</a> ·
   <a href="#contributing">Contributing</a>
 </p>
 
@@ -16,158 +16,89 @@
 
 ## What is VibePub?
 
-**VibePub** is an open-source web app marketplace where anyone can publish browser-based apps — no app store fees, no approval queues, no corporate gatekeepers.
+**VibePub** is an open web app store where anyone can publish and discover browser-based apps — no fees, no gatekeepers, no waiting.
 
-Built for the AI era, where millions of developers are creating apps with tools like Cursor, Bolt, Claude, and more. You vibe-code an app → you pub it → the world can use it. That simple.
+AI tools like Cursor, Bolt, and Claude are turning everyone into a developer. But where do you ship what you've built? App stores charge 30%, take weeks to review, and have endless rules. Setting up your own hosting means dealing with domains, SSL, CI/CD...
 
-### The Problem
-
-- **App stores are broken** — 30% fees, weeks-long reviews, strict rules, corporate control
-- **AI is creating a developer explosion** — millions of new creators need somewhere to ship
-- **Publishing a web app is still too hard** — domains, hosting, CI/CD, SSL... too many steps for a simple idea
-- **In some regions (e.g. China), it's nearly impossible** — business licenses, ICP filing, copyright registration, content review — individual developers simply can't publish
-
-### The Solution
-
-VibePub gives every developer — from a high school student to a seasoned pro — a place to publish web apps in minutes:
+**VibePub makes it simple:**
 
 ```
-You build an app (with AI or by hand)
-    → Push to GitHub
-    → VibePub builds, audits, and hosts it
-    → Live at yourapp.vibepub.dev 🚀
+Build an app → Push to GitHub → Live at yourapp.vibepub.dev 🚀
 ```
 
-**Zero cost. Zero gatekeepers. Open source everything.**
+That's it. Zero cost. Open source. Minutes, not weeks.
 
-## Core Principles
-
-### 🔓 Open Source First
-Every app on VibePub must have its frontend source code publicly available. This enables:
-- Community code review and trust
-- AI-powered security auditing
-- Transparency by default
-
-### 🤖 AI-Native
-- Developers deploy via API or CLI — AI agents can publish apps autonomously
-- Users discover apps through semantic search — your AI can find and recommend apps
-- AI-powered security scanning on every submission
-
-### 🌍 For Everyone
-- No business license required
-- No app store fees
-- No approval queues
-- Works in any browser, any device, any country
-
-### 📦 API-First
-The REST API is the core product. Everything else — the website, CLI, integrations — is just a wrapper.
-
-```
-REST API          ← the one true interface
-  ├── Web UI      ← for humans
-  ├── CLI         ← for terminals
-  └── AI agents   ← for the future
-```
+---
 
 ## For Developers
 
-### How It Works
+### Publish in minutes
 
-1. **Build** your web app (React, Vue, Svelte, plain HTML — anything that compiles to static files)
-2. **Push** your code to a public GitHub repo
-3. **Submit** via CLI or API: `vibepub publish --repo your/repo --tag v1.0`
-4. **VibePub** clones your code → runs AI security audit → builds → deploys
-5. **Live** at `yourapp.vibepub.dev` within minutes
+1. **Build** your web app — React, Vue, Svelte, plain HTML, anything
+2. **Push** to a public GitHub repo
+3. **Submit** via CLI or API
+4. **Done** — VibePub builds, audits, and hosts it for you
 
-### What You Can Publish
+No domains to buy. No servers to manage. No approval queues.
 
-| App Type | Build |
-|----------|-------|
-| Pure HTML/CSS/JS | No build needed, hosted directly |
-| React / Vue / Svelte | `npm run build` → static output |
-| Next.js (static export) | `next export` → static |
-| Astro | `astro build` → static |
+### Works with any framework
 
-### Frontend + Backend Apps
+Any web app that outputs static files works on VibePub — plain HTML, React, Vue, Svelte, Next.js, Astro, you name it.
 
-- VibePub hosts your **frontend** (static files)
-- Your **backend** stays on your own server
-- Frontend calls your backend API (standard CORS)
-- Frontend is open source; backend can be closed source
+### Have a backend? No problem
 
-### Trust Levels
+VibePub hosts your frontend. Your backend stays on your own server. Frontend is open source; backend can stay private.
 
-| Level | Description |
-|-------|-------------|
-| 🟢 **Fully Open** | Frontend open source, no backend (pure client-side) |
-| 🔵 **Open Frontend** | Frontend open source, connects to external backend |
-| 🟡 **Audited** | Frontend audited, backend API security checked |
+### Built for AI workflows
 
-## Tech Stack
+Deploy from your AI coding tool, your terminal, or your own AI agent. The API handles everything — publishing, updating, searching. If your tool can make HTTP requests, it can publish to VibePub.
 
-| Layer | Technology |
-|-------|-----------|
-| **API** | Hono (TypeScript) on Cloudflare Workers |
-| **Database** | Cloudflare D1 (SQLite) |
-| **Website** | Astro / Next.js |
-| **App Hosting** | Cloudflare Pages |
-| **Search** | Embedding-based semantic search |
-| **Security** | Static analysis + LLM code review |
-| **Build** | Sandboxed containers |
+---
 
-## Roadmap
+## For Users
 
-### Phase 1 — MVP 🏗️
-- [ ] REST API design + OpenAPI spec
-- [ ] Basic website (app listing, search, app detail pages)
-- [ ] Build pipeline (git clone → build → deploy to Cloudflare Pages)
-- [ ] AI security scanning (basic)
-- [ ] CLI tool (`vibepub publish / search / info`)
-- [ ] 20-30 seed apps
-- [ ] Launch on Hacker News + Reddit
+### Discover and use apps instantly
 
-### Phase 2 — Traction 📈
-- [ ] AI semantic search
-- [ ] Developer profiles + dashboard
-- [ ] Ratings and reviews
-- [ ] Cursor / Bolt integration
-- [ ] Weekly featured newsletter
-- [ ] Discord community
-- [ ] Custom domain support
+Browse or search the store, click an app, and start using it — right in your browser. No downloads, no installs, no sign-ups.
 
-### Phase 3 — Growth 🌱
-- [ ] Simplified Chinese localization
-- [ ] Deep AI security auditing
-- [ ] Trust level system
-- [ ] Media coverage
-- [ ] Developer stories series
+### Let your AI find apps for you
 
-### Phase 4 — Ecosystem 🌐
-- [ ] Monetization features
-- [ ] Enterprise edition
-- [ ] Core team expansion
-- [ ] Internationalization
-- [ ] More AI tool integrations
+AI agents can search VibePub and recommend apps based on what you need. Ask your AI assistant for "a pomodoro timer" or "a QR code generator" and it can find one on VibePub for you.
+
+### Trust through transparency
+
+Every app's frontend code is publicly viewable. AI security scanning runs on every submission. You can see exactly what an app does before you use it.
+
+---
+
+## What Makes VibePub Different
+
+### 🔓 Open Source First
+Every app on VibePub has its source code publicly available. Community review, AI-powered security auditing, and full transparency — built in, not bolted on.
+
+### 🤖 AI-Native
+Designed from day one for the AI era. Developers publish through APIs and AI tools. Users discover apps through intelligent search. AI security scanning protects everyone.
+
+### 🌍 Zero Barriers
+No business license. No fees. No approval queues. A high school student with a great idea can publish just as easily as a seasoned developer. Works on any browser, any device.
+
+### 📦 API-First
+The API is the product. The website, CLI, and AI integrations are all built on top of it. Anything a human can do on VibePub, an AI agent can do too.
+
+---
 
 ## Contributing
 
-VibePub is open source and community-driven. We welcome contributions!
+VibePub is open source and community-driven. We'd love your help.
 
 - 🐛 Found a bug? [Open an issue](https://github.com/ashleytechhk/vibepub/issues)
 - 💡 Have an idea? [Start a discussion](https://github.com/ashleytechhk/vibepub/discussions)
 - 🔧 Want to contribute code? See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-### Development
-
 ```bash
-# Clone the repo
 git clone https://github.com/ashleytechhk/vibepub.git
 cd vibepub
-
-# Install dependencies
 npm install
-
-# Start dev server
 npm run dev
 ```
 
