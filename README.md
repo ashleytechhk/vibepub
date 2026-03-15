@@ -63,6 +63,8 @@ Deploy from your AI coding tool, your terminal, or your own AI agent. The API ha
 
 🔍 **SEO done for you** — Every app gets its own optimized page on vibepub.dev. We handle meta tags, structured data, and indexing so your app ranks in search engines without you lifting a finger.
 
+📊 **Public stats that prove your app's worth** — Every app on VibePub gets transparent, third-party analytics: views, visitors, retention, and more. These aren't self-reported numbers — they're independent, publicly visible proof of how good your app is. Combined with your GitHub repo's star count (displayed on every app page), users and investors can instantly see real traction.
+
 ---
 
 ## For Users
