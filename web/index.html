@@ -42,8 +42,35 @@
       </div>
     </section>
 
-    <!-- FEATURES -->
-    <section class="features">
+    <!-- BROWSE APPS (above the fold for visitors!) -->
+    <section class="section" id="browse">
+      <h2 class="section-title">🗂️ Browse Apps</h2>
+      <div class="pills" id="category-pills">
+        <span class="pill active" data-cat="all">All</span>
+        <span class="pill" data-cat="utility">Utility</span>
+        <span class="pill" data-cat="productivity">Productivity</span>
+        <span class="pill" data-cat="game">Game</span>
+        <span class="pill" data-cat="education">Education</span>
+        <span class="pill" data-cat="entertainment">Entertainment</span>
+        <span class="pill" data-cat="social">Social</span>
+        <span class="pill" data-cat="finance">Finance</span>
+        <span class="pill" data-cat="health">Health</span>
+        <span class="pill" data-cat="developer">Developer</span>
+        <span class="pill" data-cat="design">Design</span>
+        <span class="pill" data-cat="communication">Communication</span>
+        <span class="pill" data-cat="other">Other</span>
+      </div>
+      <div id="apps-grid" class="app-grid">
+        <div class="loading"><div class="spinner"></div><p>Loading apps...</p></div>
+      </div>
+      <div id="apps-empty" class="empty-state" style="display:none">
+        <div class="icon">📦</div>
+        <p>No apps found. Be the first to publish!</p>
+      </div>
+    </section>
+
+    <!-- FEATURES (for developers) -->
+    <section class="features" id="features">
       <div class="feature-card">
         <div class="icon">🔒</div>
         <h3>AI Security Scanning</h3>
@@ -68,33 +95,6 @@
         <div class="icon">📊</div>
         <h3>Public Analytics</h3>
         <p>Transparent usage stats serve as third-party credibility — like GitHub stars for your web app.</p>
-      </div>
-    </section>
-
-    <!-- BROWSE APPS -->
-    <section class="section" id="browse">
-      <h2 class="section-title">🗂️ Browse Apps</h2>
-      <div class="pills" id="category-pills">
-        <span class="pill active" data-cat="all">All</span>
-        <span class="pill" data-cat="utility">Utility</span>
-        <span class="pill" data-cat="productivity">Productivity</span>
-        <span class="pill" data-cat="game">Game</span>
-        <span class="pill" data-cat="education">Education</span>
-        <span class="pill" data-cat="entertainment">Entertainment</span>
-        <span class="pill" data-cat="social">Social</span>
-        <span class="pill" data-cat="finance">Finance</span>
-        <span class="pill" data-cat="health">Health</span>
-        <span class="pill" data-cat="developer">Developer</span>
-        <span class="pill" data-cat="design">Design</span>
-        <span class="pill" data-cat="communication">Communication</span>
-        <span class="pill" data-cat="other">Other</span>
-      </div>
-      <div id="apps-grid" class="app-grid">
-        <div class="loading"><div class="spinner"></div><p>Loading apps...</p></div>
-      </div>
-      <div id="apps-empty" class="empty-state" style="display:none">
-        <div class="icon">📦</div>
-        <p>No apps found. Be the first to publish!</p>
       </div>
     </section>
   </div>

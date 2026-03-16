@@ -63,13 +63,13 @@ a:hover { color: var(--accent-hover); }
 
 /* ===== HERO ===== */
 .hero {
-  text-align: center; padding: 80px 0 60px;
+  text-align: center; padding: 48px 0 32px;
 }
-.hero-emoji { font-size: 4rem; margin-bottom: 16px; }
-.hero h1 { font-size: 3rem; font-weight: 700; margin-bottom: 8px; }
+.hero-emoji { font-size: 3rem; margin-bottom: 12px; }
+.hero h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 6px; }
 .hero h1 span { color: var(--accent); }
-.hero .tagline { font-size: 1.3rem; color: var(--text-secondary); margin-bottom: 8px; }
-.hero .subtitle { font-size: 1rem; color: var(--text-muted); margin-bottom: 40px; }
+.hero .tagline { font-size: 1.2rem; color: var(--text-secondary); margin-bottom: 6px; }
+.hero .subtitle { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 24px; }
 
 /* ===== SEARCH ===== */
 .search-box {

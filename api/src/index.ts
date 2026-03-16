@@ -81,6 +81,19 @@ app.route('/api/search', search);
 app.route('/api/developers', developers);
 app.route('/api/build', build);
 
+// Serve static assets for main domain (non-API routes)
+app.get('*', async (c) => {
+  try {
+    const response = await c.env.ASSETS.fetch(c.req.raw);
+    if (response.status !== 404) {
+      return response;
+    }
+  } catch {
+    // fall through to 404
+  }
+  return c.json({ error: 'Not found' }, 404);
+});
+
 // 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Not found' }, 404);
