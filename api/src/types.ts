@@ -7,6 +7,7 @@ export interface Env {
   CF_ACCOUNT_ID: string;
   CF_API_TOKEN: string;
   GITHUB_PAT: string;
+  RESEND_API_KEY: string;
 }
 
 export interface Developer {

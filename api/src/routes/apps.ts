@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
 import { runBuildPipeline, formatChecklist } from '../lib/build-pipeline';
+import { sendEmail, buildSubmissionApprovedEmail, buildSubmissionRejectedEmail } from '../lib/email';
 
 const apps = new Hono<{ Bindings: Env; Variables: { developerId: string } }>();
 
@@ -173,6 +174,11 @@ apps.post('/', authMiddleware, async (c) => {
       const result = await runBuildPipeline(buildCtx);
       const completedAt = new Date().toISOString();
 
+      // Get developer email for notifications
+      const dev = await c.env.DB.prepare(
+        'SELECT email, display_name FROM developers WHERE id = ?'
+      ).bind(developerId).first<{ email: string; display_name: string }>();
+
       if (result.success) {
         await c.env.DB.prepare(
           `UPDATE submissions SET status = 'approved', audit_result = ?, completed_at = ? WHERE id = ?`
@@ -181,6 +187,14 @@ apps.post('/', authMiddleware, async (c) => {
         await c.env.DB.prepare(
           `UPDATE apps SET status = 'approved', updated_at = ? WHERE id = ?`
         ).bind(completedAt, appId).run();
+
+        // Send approval email
+        if (dev?.email) {
+          try {
+            const emailOpts = buildSubmissionApprovedEmail(name, slug);
+            await sendEmail(c.env.RESEND_API_KEY, { ...emailOpts, to: dev.email });
+          } catch (e) { console.error('Email send error:', e); }
+        }
       } else {
         await c.env.DB.prepare(
           `UPDATE submissions SET status = 'rejected', audit_result = ?, reject_reason = ?, completed_at = ? WHERE id = ?`
@@ -192,6 +206,18 @@ apps.post('/', authMiddleware, async (c) => {
         await c.env.DB.prepare(
           `UPDATE apps SET status = 'rejected', updated_at = ? WHERE id = ?`
         ).bind(completedAt, appId).run();
+
+        // Send rejection email
+        if (dev?.email) {
+          try {
+            const emailOpts = buildSubmissionRejectedEmail(
+              name,
+              result.error || 'Build checks failed',
+              formatChecklist(result.checklist)
+            );
+            await sendEmail(c.env.RESEND_API_KEY, { ...emailOpts, to: dev.email });
+          } catch (e) { console.error('Email send error:', e); }
+        }
       }
     } catch (err: any) {
       console.error('Build pipeline error:', err);

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { signJwt } from '../middleware/auth';
+import { sendEmail, buildWelcomeEmail } from '../lib/email';
 
 const auth = new Hono<{ Bindings: Env }>();
 
@@ -99,6 +100,17 @@ auth.get('/github/callback', async (c) => {
     ).run();
 
     developer = { id, github_username: githubUser.login };
+
+    // Send welcome email to new developer
+    if (email) {
+      const displayName = githubUser.name || githubUser.login;
+      c.executionCtx.waitUntil(
+        sendEmail(c.env.RESEND_API_KEY, {
+          ...buildWelcomeEmail(displayName),
+          to: email,
+        }).catch(e => console.error('Welcome email error:', e))
+      );
+    }
   } else {
     // Update existing developer info
     await c.env.DB.prepare(
