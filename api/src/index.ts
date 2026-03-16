@@ -9,6 +9,34 @@ import build from './routes/build';
 
 const app = new Hono<{ Bindings: Env }>();
 
+// Subdomain routing — proxy *.vibepub.dev to corresponding CF Pages project
+app.use('*', async (c, next) => {
+  const hostname = new URL(c.req.url).hostname;
+
+  // Check if this is a subdomain request (e.g. hello-vibepub.vibepub.dev)
+  if (hostname.endsWith('.vibepub.dev') && hostname !== 'vibepub.dev') {
+    const subdomain = hostname.replace('.vibepub.dev', '');
+
+    // Proxy to the corresponding CF Pages project
+    const pagesUrl = `https://${subdomain}.pages.dev${new URL(c.req.url).pathname}`;
+    try {
+      const resp = await fetch(pagesUrl, {
+        method: c.req.method,
+        headers: c.req.raw.headers,
+      });
+
+      return new Response(resp.body, {
+        status: resp.status,
+        headers: resp.headers,
+      });
+    } catch {
+      return c.json({ error: `App "${subdomain}" not found or unavailable` }, 502);
+    }
+  }
+
+  await next();
+});
+
 // CORS
 app.use('*', cors({
   origin: '*',
