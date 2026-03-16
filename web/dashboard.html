@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developer Dashboard — VibePub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- NAV -->
+    <nav class="nav">
+      <a href="/" class="nav-logo">🍺 Vibe<span>Pub</span></a>
+      <div class="nav-links">
+        <a href="/">Browse</a>
+        <a href="/dashboard.html" class="active">Dashboard</a>
+        <a href="#" onclick="logout()" class="btn btn-outline btn-sm">Logout</a>
+      </div>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <section class="dashboard">
+      <div class="dashboard-grid">
+        <!-- SIDEBAR -->
+        <aside class="dash-sidebar">
+          <div class="dash-profile" id="profile-card">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+          <nav class="dash-nav">
+            <a href="#my-apps" class="active" onclick="showSection('my-apps', this)">📱 My Apps</a>
+            <a href="#submit-app" onclick="showSection('submit-app', this)">➕ Submit App</a>
+          </nav>
+        </aside>
+
+        <!-- CONTENT -->
+        <main class="dash-content">
+          <!-- MY APPS -->
+          <div class="dash-section" id="section-my-apps">
+            <h2>📱 My Apps</h2>
+            <div id="my-apps-list">
+              <div class="loading"><div class="spinner"></div><p>Loading your apps...</p></div>
+            </div>
+          </div>
+
+          <!-- SUBMIT APP -->
+          <div class="dash-section" id="section-submit-app" style="display:none">
+            <h2>➕ Submit New App</h2>
+            <div id="submit-alert"></div>
+            <form id="submit-form" onsubmit="return submitApp(event)">
+              <div class="form-group">
+                <label>App Name <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-name" maxlength="50" required placeholder="My Awesome App">
+                <div class="form-hint">Max 50 characters</div>
+              </div>
+
+              <div class="form-group">
+                <label>Slug <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-slug" maxlength="50" required placeholder="my-awesome-app" pattern="[a-z0-9][a-z0-9\-]{0,48}[a-z0-9]">
+                <div class="form-hint">URL-friendly name (lowercase letters, numbers, hyphens). This becomes <strong>my-awesome-app.vibepub.dev</strong></div>
+              </div>
+
+              <div class="form-group">
+                <label>Tagline <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-tagline" maxlength="100" required placeholder="A short description of your app">
+                <div class="form-hint">Max 100 characters</div>
+              </div>
+
+              <div class="form-group">
+                <label>Description <span class="required">*</span></label>
+                <textarea class="form-textarea" id="f-description" maxlength="2000" required placeholder="Tell users what your app does..."></textarea>
+                <div class="form-hint">Max 2000 characters</div>
+              </div>
+
+              <div class="form-group">
+                <label>Repository URL <span class="required">*</span></label>
+                <input type="url" class="form-input" id="f-repo-url" required placeholder="https://github.com/username/repo">
+                <div class="form-hint">GitHub repository URL</div>
+              </div>
+
+              <div class="form-group">
+                <label>Repository Tag <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-repo-tag" required placeholder="v1.0">
+                <div class="form-hint">Git tag to build from (e.g. v1.0, v2.0.1)</div>
+              </div>
+
+              <div class="form-group">
+                <label>Category <span class="required">*</span></label>
+                <select class="form-select" id="f-category" required>
+                  <option value="">Select a category...</option>
+                  <option value="utility">Utility</option>
+                  <option value="productivity">Productivity</option>
+                  <option value="game">Game</option>
+                  <option value="education">Education</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="social">Social</option>
+                  <option value="finance">Finance</option>
+                  <option value="health">Health</option>
+                  <option value="developer">Developer</option>
+                  <option value="design">Design</option>
+                  <option value="communication">Communication</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Tags</label>
+                <input type="text" class="form-input" id="f-tags" placeholder="web, tool, ai, productivity">
+                <div class="form-hint">Comma-separated, max 10 tags, each max 30 characters</div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" id="submit-btn" style="margin-top: 8px;">
+                🚀 Submit for Review
+              </button>
+            </form>
+          </div>
+        </main>
+      </div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <p>🍺 VibePub — The Open Web App Store</p>
+      <p style="margin-top: 8px;">
+        <a href="https://github.com/AshleyTechHK/vibepub">GitHub</a> · 
+        Open Source (MIT)
+      </p>
+    </div>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

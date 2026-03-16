@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logging in... — VibePub</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container" style="text-align: center; padding-top: 120px;">
+    <div class="hero-emoji">🍺</div>
+    <h1 style="font-size: 1.5rem; margin-bottom: 16px;">Logging you in...</h1>
+    <div class="spinner" id="cb-spinner"></div>
+    <p id="cb-status" style="margin-top: 16px; color: var(--text-secondary);">Completing GitHub authentication...</p>
+    <div id="cb-error" class="alert alert-error" style="display:none; max-width: 500px; margin: 24px auto 0;"></div>
+    <a href="/" class="btn btn-outline" id="cb-home" style="display:none; margin-top: 16px;">Back to Home</a>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const error = params.get('error');
+
+      if (error) {
+        document.getElementById('cb-spinner').style.display = 'none';
+        document.getElementById('cb-status').style.display = 'none';
+        document.getElementById('cb-error').style.display = 'block';
+        document.getElementById('cb-error').textContent = 'Login failed: ' + decodeURIComponent(error);
+        document.getElementById('cb-home').style.display = 'inline-flex';
+        return;
+      }
+
+      if (token) {
+        setToken(token);
+        document.getElementById('cb-status').textContent = 'Success! Redirecting to dashboard...';
+        setTimeout(function() { window.location.href = '/dashboard.html'; }, 800);
+      } else {
+        document.getElementById('cb-spinner').style.display = 'none';
+        document.getElementById('cb-status').style.display = 'none';
+        document.getElementById('cb-error').style.display = 'block';
+        document.getElementById('cb-error').textContent = 'No authentication token received. Please try logging in again.';
+        document.getElementById('cb-home').style.display = 'inline-flex';
+      }
+    })();
+  </script>
+</body>
+</html>

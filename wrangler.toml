@@ -2,13 +2,19 @@ name = "vibepub-api"
 main = "api/src/index.ts"
 compatibility_date = "2024-12-01"
 
-[vars]
-GITHUB_CLIENT_ID = ""
-JWT_SECRET = ""
+routes = [
+  { pattern = "vibepub.dev/*", zone_name = "vibepub.dev" }
+]
 
-# GitHub client secret should be set via `wrangler secret put GITHUB_CLIENT_SECRET`
+[assets]
+directory = "./web"
+html_handling = "auto-trailing-slash"
+not_found_handling = "none"
+
+# All secrets set via `wrangler secret put`:
+# GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, JWT_SECRET
 
 [[d1_databases]]
 binding = "DB"
 database_name = "vibepub-db"
-database_id = "placeholder-will-be-set-after-creation"
+database_id = "a7270411-4c2b-4b1e-ad40-a332130a6a9b"

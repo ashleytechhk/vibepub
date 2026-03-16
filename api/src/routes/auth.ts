@@ -124,15 +124,9 @@ auth.get('/github/callback', async (c) => {
     c.env.JWT_SECRET
   );
 
-  // Return JWT (in production, redirect to frontend with token)
-  return c.json({
-    token: jwt,
-    developer: {
-      id: developer.id,
-      github_username: developer.github_username || githubUser.login,
-      avatar_url: githubUser.avatar_url,
-    },
-  });
+  // Redirect to frontend callback page with token
+  const baseUrl = new URL(c.req.url).origin;
+  return c.redirect(`${baseUrl}/callback.html?token=${encodeURIComponent(jwt)}`);
 });
 
 // GET /api/auth/me — get current developer

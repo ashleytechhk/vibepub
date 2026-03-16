@@ -3,6 +3,9 @@ export interface Env {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   JWT_SECRET: string;
+  CF_ACCOUNT_ID: string;
+  CF_API_TOKEN: string;
+  GITHUB_PAT: string;
 }
 
 export interface Developer {

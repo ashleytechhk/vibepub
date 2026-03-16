@@ -5,6 +5,7 @@ import auth from './routes/auth';
 import apps from './routes/apps';
 import search from './routes/search';
 import developers from './routes/developers';
+import build from './routes/build';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -15,16 +16,7 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Health check
-app.get('/', (c) => {
-  return c.json({
-    name: 'VibePub API',
-    version: '0.1.0',
-    tagline: 'Vibe it. Pub it. 🍺',
-    docs: 'https://vibepub.dev/docs',
-  });
-});
-
+// API index / health check
 app.get('/api', (c) => {
   return c.json({
     name: 'VibePub API',
@@ -43,6 +35,10 @@ app.get('/api', (c) => {
       search: {
         'GET /api/search?q=xxx': 'Search apps by keyword',
       },
+      build: {
+        'POST /api/build/:submissionId': 'Trigger build pipeline for a submission',
+        'GET /api/build/:submissionId': 'Get build status + checklist',
+      },
       developers: {
         'GET /api/developers/:id': 'Get developer profile',
       },
@@ -55,6 +51,7 @@ app.route('/api/auth', auth);
 app.route('/api/apps', apps);
 app.route('/api/search', search);
 app.route('/api/developers', developers);
+app.route('/api/build', build);
 
 // 404 handler
 app.notFound((c) => {
