@@ -81,6 +81,40 @@ app.route('/api/search', search);
 app.route('/api/developers', developers);
 app.route('/api/build', build);
 
+// /llms.txt — platform-level AI index for GEO (Generative Engine Optimization)
+app.get('/llms.txt', async (c) => {
+  const result = await c.env.DB.prepare(
+    `SELECT a.slug, a.name, a.tagline, a.ai_description, a.category, a.tags, a.homepage_url
+     FROM apps a WHERE a.status = 'published' ORDER BY a.published_at DESC LIMIT 200`
+  ).all<{ slug: string; name: string; tagline: string; ai_description: string; category: string; tags: string; homepage_url: string }>();
+
+  const lines: string[] = [
+    '# VibePub — Open Web App Store',
+    '# Published apps available at slug.vibepub.dev',
+    '# Full API: https://vibepub.dev/api',
+    '',
+  ];
+
+  for (const app of result.results) {
+    lines.push(`## ${app.name}`);
+    lines.push(`URL: ${app.homepage_url || `https://${app.slug}.vibepub.dev`}`);
+    lines.push(`Category: ${app.category}`);
+    if (app.tagline) lines.push(`Tagline: ${app.tagline}`);
+    if (app.ai_description) lines.push(`Description: ${app.ai_description}`);
+    if (app.tags) {
+      try {
+        const tags = JSON.parse(app.tags);
+        if (tags.length) lines.push(`Tags: ${tags.join(', ')}`);
+      } catch {}
+    }
+    lines.push('');
+  }
+
+  return new Response(lines.join('\n'), {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+});
+
 // Serve static assets for main domain (non-API routes)
 app.get('*', async (c) => {
   try {

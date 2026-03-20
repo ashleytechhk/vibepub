@@ -3,6 +3,7 @@ import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
 import { runBuildPipeline, formatChecklist } from '../lib/build-pipeline';
 import { sendEmail, buildSubmissionApprovedEmail, buildSubmissionRejectedEmail } from '../lib/email';
+import { fetchReadme, generateAiContent } from '../lib/ai-content';
 
 const apps = new Hono<{ Bindings: Env; Variables: { developerId: string } }>();
 
@@ -275,6 +276,25 @@ apps.post('/', authMiddleware, async (c) => {
           `UPDATE apps SET status = 'approved', updated_at = ? WHERE id = ?`
         ).bind(completedAt, appId).run();
 
+        // Generate AI content for SEO/GEO (fire-and-forget)
+        try {
+          const readmeRaw = await fetchReadme(buildCtx.owner, buildCtx.repo, buildCtx.tag, c.env.GITHUB_PAT);
+          if (readmeRaw && c.env.AI) {
+            const aiContent = await generateAiContent(c.env.AI, name, tagline, description, readmeRaw);
+            if (aiContent) {
+              await c.env.DB.prepare(
+                'UPDATE apps SET readme_raw = ?, ai_description = ?, ai_faq = ?, updated_at = ? WHERE id = ?'
+              ).bind(
+                readmeRaw.slice(0, 50000),
+                aiContent.ai_description,
+                JSON.stringify(aiContent.ai_faq),
+                new Date().toISOString(),
+                appId
+              ).run();
+            }
+          }
+        } catch (e) { console.error('AI content error:', e); }
+
         // Send approval email
         if (dev?.email) {
           try {
@@ -402,7 +422,7 @@ apps.get('/:slug', async (c) => {
   const slug = c.req.param('slug');
 
   const app = await c.env.DB.prepare(
-    `SELECT a.*, d.github_username, d.display_name as developer_name, d.avatar_url as developer_avatar
+    `SELECT a.*, d.github_username, d.display_name as developer_name, d.avatar_url as developer_avatar, d.bio as developer_bio
      FROM apps a JOIN developers d ON a.developer_id = d.id
      WHERE a.slug = ?`
   ).bind(slug).first();

@@ -2,6 +2,29 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ MANDATORY: Voice Reply（每次都要做，唔准 Skip！）
+
+每次完成任務回覆 Simon 時，**必須**先用語音講重點，再打文字。唔准 skip，唔准「下次先做」。
+
+```bash
+# One-liner — 直接用，唔使 source 任何嘢
+MINIMAX_GROUP_ID=$(grep MINIMAX_GROUP_ID /Users/shumkwan/clawd/shared/credentials/api-keys.env | cut -d= -f2 | tr -d '"') \
+MINIMAX_API_KEY=$(grep MINIMAX_API_KEY /Users/shumkwan/clawd/shared/credentials/api-keys.env | cut -d= -f2 | tr -d '"') \
+MINIMAX_VOICE_ID="moss_audio_e39b563e-0bbd-11f0-b576-92cb5d429e3c" \
+MINIMAX_MODEL="speech-2.6-turbo" \
+MINIMAX_VOICE_SPEED="0.9" \
+MINIMAX_VOICE_VOLUME="2.0" \
+/Users/shumkwan/clawd/shared/.venv/bin/python3 /Users/shumkwan/clawd/shared/data/skills/minimax-tts/scripts/tts.py "你嘅廣東話摘要" -o reply.mp3 && afplay /tmp/reply.mp3
+```
+
+### 規則
+- **每次完成任務都要做** — 冇例外
+- **廣東話口語** — 1-2 句，自然簡潔
+- **英文標點**（`, . ! ? ...`）— 唔好用中文標點（`，。！？`）
+- **唔好用 emoji / markdown** — 會被讀出嚟
+- **如果 TTS fail** — retry 一次。仍然 fail 就講「語音生成失敗」然後繼續文字回覆，唔好靜靜雞 skip
+- **Deploy 之後都要講** — 「搞掂喇, 已經 deploy 咗」
+
 ## Commands
 
 ```bash
@@ -101,40 +124,6 @@ Local secrets go in `.dev.vars` (not committed). Production secrets set via `wra
 The `wrangler.toml` binds:
 - `DB` → D1 database (`vibepub-db`)
 - `ASSETS` → static files from `./web`
-
-## Voice Replies (TTS)
-
-每次回覆 Simon 時，先用語音講重點摘要（1-2 句廣東話），再用文字補充詳細內容。
-
-### 使用方法
-
-```bash
-# 1. Source env vars（每個 session 開始時做一次）
-source /Users/shumkwan/clawd/shared/credentials/api-keys.env
-export MINIMAX_VOICE_ID="moss_audio_e39b563e-0bbd-11f0-b576-92cb5d429e3c"
-export MINIMAX_MODEL="speech-2.6-turbo"
-export MINIMAX_VOICE_SPEED="0.9"
-export MINIMAX_VOICE_VOLUME="2.0"
-
-# 2. 生成語音
-/Users/shumkwan/clawd/shared/.venv/bin/python3 /Users/shumkwan/clawd/shared/data/skills/minimax-tts/scripts/tts.py "你嘅廣東話文字" -o reply.mp3
-
-# 3. 播放
-afplay /tmp/reply.mp3
-```
-
-### TTS 文字撰寫規則
-- **用英文標點**（`, . ! ? ...`），唔好用中文標點（`，。！？`）
-- **唔好用 emoji** — 會被讀出名稱
-- **唔好用 markdown**（`**粗體**`、`# 標題`）
-- 用逗號同句號控制節奏
-- 廣東話口語，自然簡潔
-
-### 流程
-1. 做完嘢 → 寫一段簡短廣東話摘要
-2. 跑 TTS script 生成 MP3
-3. `afplay` 播放俾 Simon 聽
-4. 再打文字補充詳細內容
 
 ## Internal Docs
 

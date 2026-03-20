@@ -21,3 +21,6 @@ run_worker_first = true
 binding = "DB"
 database_name = "vibepub-db"
 database_id = "a7270411-4c2b-4b1e-ad40-a332130a6a9b"
+
+[ai]
+binding = "AI"

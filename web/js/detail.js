@@ -24,26 +24,58 @@ async function loadApp(slug) {
 
 function injectSchemaOrg(app) {
   const tags = app.tags ? (typeof app.tags === 'string' ? JSON.parse(app.tags) : app.tags) : [];
-  const schema = {
+  const faq = app.ai_faq ? (typeof app.ai_faq === 'string' ? JSON.parse(app.ai_faq) : app.ai_faq) : [];
+
+  // SoftwareApplication schema
+  const appSchema = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
     name: app.name,
-    description: app.description || app.tagline,
+    description: app.ai_description || app.description || app.tagline,
     url: app.homepage_url || `https://${app.slug}.vibepub.dev`,
     applicationCategory: app.category,
     operatingSystem: 'Any',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   };
-  if (app.tagline) schema.featureList = app.tagline;
-  if (tags.length) schema.keywords = tags.join(', ');
+  if (app.tagline) appSchema.featureList = app.tagline;
+  if (tags.length) appSchema.keywords = tags.join(', ');
   if (app.developer_name) {
-    schema.author = { '@type': 'Person', name: app.developer_name };
-    if (app.developer_github) schema.author.url = `https://github.com/${app.developer_github}`;
+    appSchema.author = { '@type': 'Person', name: app.developer_name };
+    if (app.github_username) appSchema.author.url = `https://github.com/${app.github_username}`;
   }
+
   const el = document.createElement('script');
   el.type = 'application/ld+json';
-  el.textContent = JSON.stringify(schema);
+  el.textContent = JSON.stringify(appSchema);
   document.head.appendChild(el);
+
+  // FAQPage schema (GEO boost)
+  if (faq.length > 0) {
+    const faqSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faq.map(item => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: { '@type': 'Answer', text: item.a },
+      })),
+    };
+    const faqEl = document.createElement('script');
+    faqEl.type = 'application/ld+json';
+    faqEl.textContent = JSON.stringify(faqSchema);
+    document.head.appendChild(faqEl);
+  }
+
+  // Update meta description with AI-generated content
+  if (app.ai_description) {
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.name = 'description';
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = app.ai_description.slice(0, 160);
+  }
 }
 
 function renderApp(app) {
@@ -53,6 +85,21 @@ function renderApp(app) {
   const trustLabel = app.trust_level || 'pending';
 
   const tags = app.tags ? (typeof app.tags === 'string' ? JSON.parse(app.tags) : app.tags) : [];
+  const faq = app.ai_faq ? (typeof app.ai_faq === 'string' ? JSON.parse(app.ai_faq) : app.ai_faq) : [];
+
+  const faqHtml = faq.length > 0 ? `
+    <div class="app-description" style="margin-top: 24px;">
+      <h2>Frequently Asked Questions</h2>
+      ${faq.map(item => `
+        <details style="margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;">
+          <summary style="cursor: pointer; font-weight: 600; color: var(--text-primary);">${esc(item.q)}</summary>
+          <p style="margin-top: 8px; color: var(--text-secondary);">${esc(item.a)}</p>
+        </details>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const displayDescription = app.ai_description || app.description;
 
   section.innerHTML = `
     <div class="app-detail-header">
@@ -75,20 +122,21 @@ function renderApp(app) {
       <div>
         <div class="app-description">
           <h2>About</h2>
-          <p>${esc(app.description)}</p>
+          <p>${esc(displayDescription)}</p>
         </div>
         ${tags.length > 0 ? `
           <div class="app-tags" style="margin-top: 16px;">
             ${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}
           </div>
         ` : ''}
+        ${faqHtml}
       </div>
       <div class="app-sidebar">
         <div class="dev-card">
           ${app.developer_avatar ? `<img src="${esc(app.developer_avatar)}" alt="${esc(app.developer_name)}">` : '<div style="width:64px;height:64px;border-radius:50%;background:var(--bg-secondary);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:2rem;">👤</div>'}
           <h3>${esc(app.developer_name || 'Unknown Developer')}</h3>
           <p>${esc(app.developer_bio || '')}</p>
-          ${app.developer_github ? `<a href="https://github.com/${esc(app.developer_github)}" target="_blank" style="font-size: 0.85rem; margin-top: 8px; display: inline-block;">@${esc(app.developer_github)}</a>` : ''}
+          ${app.github_username ? `<a href="https://github.com/${esc(app.github_username)}" target="_blank" style="font-size: 0.85rem; margin-top: 8px; display: inline-block;">@${esc(app.github_username)}</a>` : ''}
         </div>
       </div>
     </div>
