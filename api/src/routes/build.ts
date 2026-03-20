@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import { Env } from '../types';
 import { runBuildPipeline, formatChecklist, type BuildResult } from '../lib/build-pipeline';
 import { fetchReadme, generateAiContent } from '../lib/ai-content';
+import { deployToCFPages } from '../lib/deploy';
 
 const build = new Hono<{ Bindings: Env }>();
 
@@ -130,6 +131,47 @@ build.get('/:submissionId', async (c) => {
     created_at: submission.created_at,
     completed_at: submission.completed_at,
   });
+});
+
+// POST /api/build/deploy/:slug — manually deploy an approved app to CF Pages
+build.post('/deploy/:slug', async (c) => {
+  const slug = c.req.param('slug');
+
+  const app = await c.env.DB.prepare(
+    'SELECT id, slug, repo_url, repo_tag, status FROM apps WHERE slug = ?'
+  ).bind(slug).first<{ id: string; slug: string; repo_url: string; repo_tag: string; status: string }>();
+
+  if (!app) return c.json({ error: 'App not found' }, 404);
+
+  const match = app.repo_url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) return c.json({ error: 'Invalid repo URL' }, 400);
+  const [, owner, repo] = match;
+
+  const deployResult = await deployToCFPages({
+    owner,
+    repo: repo.replace(/\.git$/, ''),
+    tag: app.repo_tag,
+    slug: app.slug,
+    githubToken: c.env.GITHUB_PAT,
+    cfAccountId: c.env.CF_ACCOUNT_ID,
+    cfApiToken: c.env.CF_API_TOKEN,
+  });
+
+  if (!deployResult.success) {
+    return c.json({ error: deployResult.error }, 500);
+  }
+
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `UPDATE apps SET status = 'published', published_at = ?, homepage_url = ?, updated_at = ? WHERE id = ?`
+  ).bind(now, `https://${app.slug}.vibepub.dev`, now, app.id).run();
+
+  // Update submission too
+  await c.env.DB.prepare(
+    `UPDATE submissions SET status = 'completed', completed_at = ? WHERE app_id = ?`
+  ).bind(now, app.id).run();
+
+  return c.json({ message: `Deployed ${slug}`, url: `https://${slug}.vibepub.dev` });
 });
 
 // POST /api/build/generate-ai/:slug — backfill AI content for an existing app

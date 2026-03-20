@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth';
 import { runBuildPipeline, formatChecklist } from '../lib/build-pipeline';
 import { sendEmail, buildSubmissionApprovedEmail, buildSubmissionRejectedEmail } from '../lib/email';
 import { fetchReadme, generateAiContent } from '../lib/ai-content';
+import { deployToCFPages } from '../lib/deploy';
 
 const apps = new Hono<{ Bindings: Env; Variables: { developerId: string } }>();
 
@@ -270,11 +271,43 @@ apps.post('/', authMiddleware, async (c) => {
           `UPDATE submissions SET status = 'approved', audit_result = ?, completed_at = ? WHERE id = ?`
         ).bind(JSON.stringify(result.checklist), completedAt, submissionId).run();
 
-        await c.env.DB.prepare(
-          `UPDATE apps SET status = 'approved', updated_at = ? WHERE id = ?`
-        ).bind(completedAt, appId).run();
+        // Auto-deploy to CF Pages
+        let deployed = false;
+        try {
+          const deployResult = await deployToCFPages({
+            owner: buildCtx.owner,
+            repo: buildCtx.repo,
+            tag: buildCtx.tag,
+            slug,
+            githubToken: c.env.GITHUB_PAT,
+            cfAccountId: c.env.CF_ACCOUNT_ID,
+            cfApiToken: c.env.CF_API_TOKEN,
+          });
 
-        // Generate AI content for SEO/GEO (fire-and-forget)
+          if (deployResult.success) {
+            deployed = true;
+            const publishedAt = new Date().toISOString();
+            await c.env.DB.prepare(
+              `UPDATE apps SET status = 'published', published_at = ?, homepage_url = ?, updated_at = ? WHERE id = ?`
+            ).bind(publishedAt, `https://${slug}.vibepub.dev`, publishedAt, appId).run();
+            await c.env.DB.prepare(
+              `UPDATE submissions SET status = 'completed', completed_at = ? WHERE id = ?`
+            ).bind(publishedAt, submissionId).run();
+            console.log(`Deployed ${slug} to CF Pages`);
+          } else {
+            console.error(`Deploy failed for ${slug}:`, deployResult.error);
+            await c.env.DB.prepare(
+              `UPDATE apps SET status = 'approved', updated_at = ? WHERE id = ?`
+            ).bind(completedAt, appId).run();
+          }
+        } catch (e) {
+          console.error('Deploy error:', e);
+          await c.env.DB.prepare(
+            `UPDATE apps SET status = 'approved', updated_at = ? WHERE id = ?`
+          ).bind(completedAt, appId).run();
+        }
+
+        // Generate AI content for SEO/GEO
         try {
           const readmeRaw = await fetchReadme(buildCtx.owner, buildCtx.repo, buildCtx.tag, c.env.GITHUB_PAT);
           if (readmeRaw && c.env.AI) {
@@ -293,7 +326,7 @@ apps.post('/', authMiddleware, async (c) => {
           }
         } catch (e) { console.error('AI content error:', e); }
 
-        // Send approval email
+        // Send email
         if (dev?.email) {
           try {
             const emailOpts = buildSubmissionApprovedEmail(name, slug);
