@@ -514,4 +514,120 @@ apps.delete('/:slug', authMiddleware, async (c) => {
   return c.json({ message: `App "${app.name}" has been unlisted and removed.` });
 });
 
+// POST /api/apps/admin/seed — internal endpoint for bulk seeding apps with pre-generated AI content
+// Accepts complete app data + AI content, does DB insert + R2 deploy in one call
+apps.post('/admin/seed', authMiddleware, async (c) => {
+  const developerId = c.get('developerId');
+
+  // Admin only
+  const dev = await c.env.DB.prepare(`SELECT email FROM developers WHERE id = ?`).bind(developerId).first<{ email: string }>();
+  if (!dev || dev.email !== ADMIN_EMAIL) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  const name = String(body.name || '').trim();
+  const slug = String(body.slug || '').trim();
+  const tagline = String(body.tagline || '').trim();
+  const description = String(body.description || '').trim();
+  const repoUrl = String(body.repo_url || '').trim();
+  const repoTag = String(body.repo_tag || 'main').trim();
+  const tags = Array.isArray(body.tags) ? body.tags : [];
+  const category = String(body.category || '').trim();
+  const aiDescription = String(body.ai_description || '').trim();
+  const aiFaq = Array.isArray(body.ai_faq) ? body.ai_faq : [];
+  const readmeRaw = String(body.readme_raw || '').trim();
+
+  // Validate required fields
+  const errors: string[] = [];
+  if (!name) errors.push('name is required');
+  if (!slug) errors.push('slug is required');
+  if (!repoUrl) errors.push('repo_url is required');
+  if (errors.length > 0) return c.json({ error: 'Validation failed', details: errors }, 400);
+
+  const now = new Date().toISOString();
+  const existing = await c.env.DB.prepare('SELECT id FROM apps WHERE slug = ?').bind(slug).first<{ id: string }>();
+  const isUpdate = !!existing;
+  const appId = existing?.id || crypto.randomUUID();
+
+  if (isUpdate) {
+    // Update existing app
+    await c.env.DB.prepare(
+      `UPDATE apps SET name = ?, tagline = ?, description = ?, category = ?, tags = ?, repo_url = ?, repo_tag = ?,
+       ai_description = ?, ai_faq = ?, readme_raw = ?, updated_at = ?
+       WHERE id = ?`
+    ).bind(
+      name, tagline, description, category || null,
+      tags.length > 0 ? JSON.stringify(tags) : null,
+      repoUrl, repoTag,
+      aiDescription || null,
+      aiFaq.length > 0 ? JSON.stringify(aiFaq) : null,
+      readmeRaw || null,
+      now, appId
+    ).run();
+  } else {
+    // Insert new app
+    await c.env.DB.prepare(
+      `INSERT INTO apps (id, developer_id, slug, name, tagline, description, category, tags, repo_url, repo_tag,
+       homepage_url, status, trust_level, ai_description, ai_faq, readme_raw, published_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 'fully_open', ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      appId, developerId, slug, name, tagline, description, category || null,
+      tags.length > 0 ? JSON.stringify(tags) : null,
+      repoUrl, repoTag,
+      `https://${slug}.vibepub.dev`,
+      aiDescription || null,
+      aiFaq.length > 0 ? JSON.stringify(aiFaq) : null,
+      readmeRaw || null,
+      now, now, now
+    ).run();
+
+    // Update developer app count (only for new apps)
+    await c.env.DB.prepare(
+      'UPDATE developers SET app_count = app_count + 1, updated_at = ? WHERE id = ?'
+    ).bind(now, developerId).run();
+  }
+
+  // Deploy to R2
+  const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (match) {
+    const [, owner, repo] = match;
+    const repoName = repo.replace(/\.git$/, '');
+    try {
+      const deployResult = await deployToR2({
+        owner,
+        repo: repoName,
+        tag: repoTag,
+        slug,
+        githubToken: c.env.GITHUB_PAT,
+        appBucket: c.env.APP_BUCKET,
+      });
+      if (!deployResult.success) {
+        return c.json({
+          message: `App ${isUpdate ? 'updated' : 'created'} in DB but R2 deploy failed`,
+          error: deployResult.error,
+          app: { id: appId, slug, name, status: 'published', updated: isUpdate },
+        }, 207);
+      }
+    } catch (e: any) {
+      return c.json({
+        message: `App ${isUpdate ? 'updated' : 'created'} in DB but R2 deploy errored`,
+        error: e.message,
+        app: { id: appId, slug, name, status: 'published', updated: isUpdate },
+      }, 207);
+    }
+  }
+
+  return c.json({
+    message: isUpdate ? 'App updated successfully' : 'App seeded successfully',
+    app: { id: appId, slug, name, status: 'published', updated: isUpdate, url: `https://${slug}.vibepub.dev` },
+  });
+});
+
 export default apps;
