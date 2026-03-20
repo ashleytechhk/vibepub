@@ -107,29 +107,12 @@
               </div>
 
               <div class="form-group">
-                <label>Category <span class="required">*</span></label>
-                <select class="form-select" id="f-category" required>
-                  <option value="">Select a category...</option>
-                  <option value="utility">Utility</option>
-                  <option value="productivity">Productivity</option>
-                  <option value="game">Game</option>
-                  <option value="education">Education</option>
-                  <option value="entertainment">Entertainment</option>
-                  <option value="social">Social</option>
-                  <option value="finance">Finance</option>
-                  <option value="health">Health</option>
-                  <option value="developer">Developer</option>
-                  <option value="design">Design</option>
-                  <option value="communication">Communication</option>
-                  <option value="other">Other</option>
-                </select>
+                <label>Tags</label>
+                <input type="text" class="form-input" id="f-tags" placeholder="web, tool, ai, productivity, game">
+                <div class="form-hint">Comma-separated, max 10 tags, each max 30 characters. Used for browsing and AI discovery.</div>
               </div>
 
-              <div class="form-group">
-                <label>Tags</label>
-                <input type="text" class="form-input" id="f-tags" placeholder="web, tool, ai, productivity">
-                <div class="form-hint">Comma-separated, max 10 tags, each max 30 characters</div>
-              </div>
+              <input type="hidden" id="f-category" value="">
 
               <div style="display: flex; gap: 12px; margin-top: 8px;">
                 <button type="submit" class="btn btn-primary" id="submit-btn">

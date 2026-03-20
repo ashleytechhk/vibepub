@@ -105,8 +105,8 @@ function renderApp(app) {
     <div class="app-detail-header">
       <h1>${esc(app.name)}</h1>
       <p class="tagline">${esc(app.tagline)}</p>
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-        <span class="category-badge" style="font-size: 0.85rem;">${esc(app.category)}</span>
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+        ${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}
         <span class="trust-badge ${trustClass}">${trustLabel}</span>
       </div>
       <div class="app-detail-actions">
@@ -124,11 +124,6 @@ function renderApp(app) {
           <h2>About</h2>
           <p>${esc(displayDescription)}</p>
         </div>
-        ${tags.length > 0 ? `
-          <div class="app-tags" style="margin-top: 16px;">
-            ${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}
-          </div>
-        ` : ''}
         ${faqHtml}
       </div>
       <div class="app-sidebar">

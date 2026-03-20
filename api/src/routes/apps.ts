@@ -157,14 +157,12 @@ apps.post('/', authMiddleware, async (c) => {
     errors.push('repo_tag is required (e.g. "v1.0" or a commit hash)');
   }
 
-  // category
-  if (!body.category || typeof body.category !== 'string') {
-    errors.push(`category is required. Choose from: ${VALID_CATEGORIES.join(', ')}`);
-  } else if (!VALID_CATEGORIES.includes(body.category as string)) {
+  // category (optional — kept for backwards compat but not required)
+  if (body.category && typeof body.category === 'string' && !VALID_CATEGORIES.includes(body.category as string)) {
     errors.push(`Invalid category "${body.category}". Choose from: ${VALID_CATEGORIES.join(', ')}`);
   }
 
-  // tags (optional but validate if provided)
+  // tags (recommended — used for filtering and discovery)
   if (body.tags !== undefined) {
     if (!Array.isArray(body.tags)) {
       errors.push('tags must be an array of strings (e.g. ["tool", "ai"])');
@@ -187,10 +185,10 @@ apps.post('/', authMiddleware, async (c) => {
         description: 'string (max 2000 chars)',
         repo_url: 'GitHub URL (https://github.com/user/repo)',
         repo_tag: 'string (e.g. "v1.0")',
-        category: `one of: ${VALID_CATEGORIES.join(', ')}`,
       },
       optional_fields: {
         tags: 'string[] (max 10, each max 30 chars)',
+        category: `one of: ${VALID_CATEGORIES.join(', ')}`,
       }
     }, 400);
   }
@@ -201,7 +199,7 @@ apps.post('/', authMiddleware, async (c) => {
   const description = (body.description as string).trim();
   const repoUrl = (body.repo_url as string).replace(/\/$/, '');
   const repoTag = (body.repo_tag as string).trim();
-  const category = body.category as string;
+  const category = (body.category as string) || null;
   const tags = body.tags as string[] | undefined;
 
   // Check if slug is taken
@@ -370,16 +368,18 @@ apps.get('/mine', authMiddleware, async (c) => {
 apps.get('/', async (c) => {
   const sort = c.req.query('sort') || 'newest';
   const category = c.req.query('category');
+  const tag = c.req.query('tag');
   const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100);
   const offset = parseInt(c.req.query('offset') || '0');
 
   let query = 'SELECT a.*, d.github_username, d.display_name as developer_name, d.avatar_url as developer_avatar FROM apps a JOIN developers d ON a.developer_id = d.id WHERE a.status = ?';
   const params: string[] = ['published'];
 
-  if (category) {
-    if (!VALID_CATEGORIES.includes(category)) {
-      return c.json({ error: `Invalid category. Choose from: ${VALID_CATEGORIES.join(', ')}` }, 400);
-    }
+  if (tag) {
+    // Search within JSON tags array using LIKE (D1/SQLite)
+    query += " AND a.tags LIKE ?";
+    params.push(`%"${tag}"%`);
+  } else if (category) {
     query += ' AND a.category = ?';
     params.push(category);
   }
@@ -402,7 +402,10 @@ apps.get('/', async (c) => {
   // Get total count
   let countQuery = 'SELECT COUNT(*) as total FROM apps WHERE status = ?';
   const countParams: string[] = ['published'];
-  if (category) {
+  if (tag) {
+    countQuery += " AND tags LIKE ?";
+    countParams.push(`%"${tag}"%`);
+  } else if (category) {
     countQuery += ' AND category = ?';
     countParams.push(category);
   }
@@ -413,7 +416,6 @@ apps.get('/', async (c) => {
     total: countResult?.total || 0,
     limit,
     offset,
-    categories: VALID_CATEGORIES,
   });
 });
 

@@ -8,6 +8,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { runBuildPipeline, formatChecklist, type BuildResult } from '../lib/build-pipeline';
+import { fetchReadme, generateAiContent } from '../lib/ai-content';
 
 const build = new Hono<{ Bindings: Env }>();
 
@@ -128,6 +129,51 @@ build.get('/:submissionId', async (c) => {
     reject_reason: submission.reject_reason,
     created_at: submission.created_at,
     completed_at: submission.completed_at,
+  });
+});
+
+// POST /api/build/generate-ai/:slug — backfill AI content for an existing app
+build.post('/generate-ai/:slug', async (c) => {
+  const slug = c.req.param('slug');
+
+  const app = await c.env.DB.prepare(
+    'SELECT id, slug, name, tagline, description, repo_url, repo_tag FROM apps WHERE slug = ?'
+  ).bind(slug).first<{ id: string; slug: string; name: string; tagline: string; description: string; repo_url: string; repo_tag: string }>();
+
+  if (!app) return c.json({ error: 'App not found' }, 404);
+
+  // Parse GitHub URL
+  const match = app.repo_url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) return c.json({ error: 'Invalid repo URL' }, 400);
+  const [, owner, repo] = match;
+  const repoName = repo.replace(/\.git$/, '');
+
+  // Fetch README (falls back to index.html)
+  const readmeRaw = await fetchReadme(owner, repoName, app.repo_tag || 'main', c.env.GITHUB_PAT);
+  if (!readmeRaw) return c.json({ error: 'Could not fetch README.md or index.html' }, 404);
+
+  // Generate AI content
+  if (!c.env.AI) return c.json({ error: 'AI binding not available' }, 500);
+
+  const aiContent = await generateAiContent(c.env.AI, app.name, app.tagline || '', app.description || '', readmeRaw);
+  if (!aiContent) return c.json({ error: 'AI generation failed' }, 500);
+
+  // Save to DB
+  await c.env.DB.prepare(
+    'UPDATE apps SET readme_raw = ?, ai_description = ?, ai_faq = ?, updated_at = ? WHERE id = ?'
+  ).bind(
+    readmeRaw.slice(0, 50000),
+    aiContent.ai_description,
+    JSON.stringify(aiContent.ai_faq),
+    new Date().toISOString(),
+    app.id
+  ).run();
+
+  return c.json({
+    message: 'AI content generated',
+    slug: app.slug,
+    ai_description: aiContent.ai_description,
+    ai_faq: aiContent.ai_faq,
   });
 });
 

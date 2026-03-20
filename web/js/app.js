@@ -1,12 +1,11 @@
 // Landing Page Logic
 
 let allApps = [];
-let currentCategory = 'all';
+let currentTag = 'all';
 
 document.addEventListener('DOMContentLoaded', async () => {
   updateNavAuth();
   updateHeroAuth();
-  setupCategoryPills();
   setupSearch();
   await loadApps();
 });
@@ -23,12 +22,28 @@ function updateHeroAuth() {
   }
 }
 
-function setupCategoryPills() {
-  document.querySelectorAll('#category-pills .pill').forEach(pill => {
+function buildTagPills() {
+  const container = document.getElementById('tag-pills');
+  // Collect all unique tags from loaded apps
+  const tagCounts = {};
+  for (const app of allApps) {
+    const tags = app.tags ? (typeof app.tags === 'string' ? JSON.parse(app.tags) : app.tags) : [];
+    for (const t of tags) {
+      tagCounts[t] = (tagCounts[t] || 0) + 1;
+    }
+  }
+  // Sort by count descending, take top 12
+  const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
+
+  container.innerHTML = '<span class="pill active" data-tag="all">All</span>' +
+    sorted.map(([tag]) => `<span class="pill" data-tag="${esc(tag)}">${esc(tag)}</span>`).join('');
+
+  // Attach click handlers
+  container.querySelectorAll('.pill').forEach(pill => {
     pill.addEventListener('click', () => {
-      document.querySelectorAll('#category-pills .pill').forEach(p => p.classList.remove('active'));
+      container.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
-      currentCategory = pill.dataset.cat;
+      currentTag = pill.dataset.tag;
       renderApps();
     });
   });
@@ -52,10 +67,8 @@ async function doSearch() {
     try {
       const data = await apiGet(`/search?q=${encodeURIComponent(q)}`);
       allApps = data.apps || [];
-      // Reset category to 'all' when searching
-      document.querySelectorAll('#category-pills .pill').forEach(p => p.classList.remove('active'));
-      document.querySelector('#category-pills .pill[data-cat="all"]').classList.add('active');
-      currentCategory = 'all';
+      currentTag = 'all';
+      buildTagPills();
       renderApps();
     } catch (e) {
       console.error('Search error:', e);
@@ -71,6 +84,7 @@ async function loadApps() {
   try {
     const data = await apiGet('/apps');
     allApps = data.apps || [];
+    buildTagPills();
     renderApps();
   } catch (e) {
     grid.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>Failed to load apps</p></div>';
@@ -82,8 +96,11 @@ function renderApps() {
   const empty = document.getElementById('apps-empty');
 
   let filtered = allApps;
-  if (currentCategory !== 'all') {
-    filtered = allApps.filter(a => a.category === currentCategory);
+  if (currentTag !== 'all') {
+    filtered = allApps.filter(a => {
+      const tags = a.tags ? (typeof a.tags === 'string' ? JSON.parse(a.tags) : a.tags) : [];
+      return tags.includes(currentTag);
+    });
   }
 
   if (filtered.length === 0) {
@@ -93,11 +110,14 @@ function renderApps() {
   }
 
   empty.style.display = 'none';
-  grid.innerHTML = filtered.map(app => `
+  grid.innerHTML = filtered.map(app => {
+    const tags = app.tags ? (typeof app.tags === 'string' ? JSON.parse(app.tags) : app.tags) : [];
+    const tagBadges = tags.slice(0, 3).map(t => `<span class="tag" style="font-size:0.7rem;padding:2px 6px;">${esc(t)}</span>`).join('');
+    return `
     <a class="app-card" href="/app.html?slug=${encodeURIComponent(app.slug)}">
       <div class="app-card-header">
         <h3>${esc(app.name)}</h3>
-        <span class="category-badge">${esc(app.category)}</span>
+        ${tagBadges}
       </div>
       <p class="tagline">${esc(app.tagline)}</p>
       <div class="app-card-footer">
@@ -105,7 +125,8 @@ function renderApps() {
         <span>${esc(app.developer_name || 'Unknown')}</span>
       </div>
     </a>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function esc(str) {

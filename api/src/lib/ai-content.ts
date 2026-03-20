@@ -8,7 +8,7 @@ export interface AiContent {
   ai_faq: Array<{ q: string; a: string }>;
 }
 
-/** Fetch README from GitHub at a specific tag */
+/** Fetch README from GitHub at a specific tag. Falls back to index.html if no README. */
 export async function fetchReadme(
   owner: string,
   repo: string,
@@ -21,12 +21,22 @@ export async function fetchReadme(
   };
   if (githubToken) headers['Authorization'] = `token ${githubToken}`;
 
-  const resp = await fetch(
-    `https://raw.githubusercontent.com/${owner}/${repo}/${tag}/README.md`,
+  // Try README.md first
+  for (const file of ['README.md', 'readme.md', 'Readme.md']) {
+    const resp = await fetch(
+      `https://raw.githubusercontent.com/${owner}/${repo}/${tag}/${file}`,
+      { headers }
+    );
+    if (resp.ok) return resp.text();
+  }
+
+  // Fallback: fetch index.html (every VibePub app has one)
+  const indexResp = await fetch(
+    `https://raw.githubusercontent.com/${owner}/${repo}/${tag}/index.html`,
     { headers }
   );
+  if (indexResp.ok) return indexResp.text();
 
-  if (resp.ok) return resp.text();
   return null;
 }
 
