@@ -98,6 +98,31 @@ export function buildSubmissionRejectedEmail(appName: string, reason: string, ch
   };
 }
 
+export function buildAccountDeletedEmail(displayName: string): SendEmailOptions {
+  return {
+    subject: `Your VibePub account has been deleted`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; background: #0a0a1a; color: #e0e0e0;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 2.5rem;">🍺</span>
+          <h1 style="font-size: 1.5rem; color: #fff; margin: 8px 0;">VibePub</h1>
+        </div>
+        <div style="background: #1a1a3e; border: 1px solid #2a2a4e; border-radius: 12px; padding: 24px;">
+          <h2 style="color: #fff; margin-top: 0;">Account Deleted</h2>
+          <p>Hi <strong style="color: #fff;">${displayName}</strong>,</p>
+          <p>Your VibePub account and all associated data (apps, submissions, API keys) have been permanently deleted.</p>
+          <p style="color: #9090b0; font-size: 0.9rem;">If you didn't request this, please contact us immediately by replying to this email.</p>
+        </div>
+        <p style="text-align: center; color: #606080; font-size: 0.8rem; margin-top: 24px;">
+          🍺 VibePub — The Open Web App Store<br>
+          <a href="https://vibepub.dev" style="color: #6c63ff;">vibepub.dev</a>
+        </p>
+      </div>
+    `,
+    text: `Hi ${displayName},\n\nYour VibePub account and all associated data have been permanently deleted.\n\nIf you didn't request this, please contact us immediately.\n\n— VibePub`,
+  };
+}
+
 export function buildWelcomeEmail(displayName: string): SendEmailOptions {
   return {
     subject: `Welcome to VibePub, ${displayName}! 🍺`,

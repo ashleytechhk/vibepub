@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
-import { signJwt } from '../middleware/auth';
-import { sendEmail, buildWelcomeEmail } from '../lib/email';
+import { signJwt, authMiddleware } from '../middleware/auth';
+import { sendEmail, buildWelcomeEmail, buildAccountDeletedEmail } from '../lib/email';
 
-const auth = new Hono<{ Bindings: Env }>();
+const auth = new Hono<{ Bindings: Env; Variables: { developerId: string; githubUsername: string } }>();
 
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get('/github', (c) => {
@@ -164,6 +164,35 @@ auth.get('/me', async (c) => {
   }
 
   return c.json({ developer });
+});
+
+// DELETE /api/auth/account — delete authenticated developer's account
+auth.delete('/account', authMiddleware, async (c) => {
+  const developerId = c.get('developerId');
+
+  // Fetch developer info before deletion (for notification email)
+  const developer = await c.env.DB.prepare(
+    'SELECT email, display_name, github_username FROM developers WHERE id = ?'
+  ).bind(developerId).first<{ email: string; display_name: string; github_username: string }>();
+
+  // Delete all related data
+  await c.env.DB.prepare('DELETE FROM submissions WHERE developer_id = ?').bind(developerId).run();
+  await c.env.DB.prepare('DELETE FROM apps WHERE developer_id = ?').bind(developerId).run();
+  await c.env.DB.prepare('DELETE FROM api_keys WHERE developer_id = ?').bind(developerId).run();
+  await c.env.DB.prepare('DELETE FROM developers WHERE id = ?').bind(developerId).run();
+
+  // Send deletion notification email
+  if (developer?.email) {
+    const displayName = developer.display_name || developer.github_username;
+    c.executionCtx.waitUntil(
+      sendEmail(c.env.RESEND_API_KEY, {
+        ...buildAccountDeletedEmail(displayName),
+        to: developer.email,
+      }).catch(e => console.error('Account deleted email error:', e))
+    );
+  }
+
+  return c.json({ message: 'Account deleted successfully' });
 });
 
 export default auth;

@@ -38,4 +38,4 @@ coverage/
 # Temp
 tmp/
 .tmp/
-
+internal_docs/

@@ -13,11 +13,37 @@ async function loadApp(slug) {
   try {
     const data = await apiGet(`/apps/${encodeURIComponent(slug)}`);
     if (!data || data.error) { show404(); return; }
-    renderApp(data.app || data);
-    document.title = `${data.app ? data.app.name : data.name} — VibePub`;
+    const app = data.app || data;
+    renderApp(app);
+    injectSchemaOrg(app);
+    document.title = `${app.name} — VibePub`;
   } catch (e) {
     show404();
   }
+}
+
+function injectSchemaOrg(app) {
+  const tags = app.tags ? (typeof app.tags === 'string' ? JSON.parse(app.tags) : app.tags) : [];
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: app.name,
+    description: app.description || app.tagline,
+    url: app.homepage_url || `https://${app.slug}.vibepub.dev`,
+    applicationCategory: app.category,
+    operatingSystem: 'Any',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  };
+  if (app.tagline) schema.featureList = app.tagline;
+  if (tags.length) schema.keywords = tags.join(', ');
+  if (app.developer_name) {
+    schema.author = { '@type': 'Person', name: app.developer_name };
+    if (app.developer_github) schema.author.url = `https://github.com/${app.developer_github}`;
+  }
+  const el = document.createElement('script');
+  el.type = 'application/ld+json';
+  el.textContent = JSON.stringify(schema);
+  document.head.appendChild(el);
 }
 
 function renderApp(app) {

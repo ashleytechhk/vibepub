@@ -58,7 +58,8 @@ async function loadMyApps() {
         </div>
         <div class="my-app-actions">
           <span class="status-badge status-${app.status || 'pending'}">${app.status || 'pending'}</span>
-          ${app.status === 'published' ? `<a href="/app.html?slug=${encodeURIComponent(app.slug)}" class="btn btn-outline btn-sm">View</a>` : ''}
+          ${app.status === 'published' || app.status === 'approved' ? `<a href="/app.html?slug=${encodeURIComponent(app.slug)}" class="btn btn-outline btn-sm">View</a>` : ''}
+          <button class="btn btn-sm" style="background:#dc2626;color:#fff;border:none;" onclick="unlistApp('${esc(app.slug)}', '${esc(app.name)}')">Unlist</button>
         </div>
       </div>
     `).join('');
@@ -86,6 +87,61 @@ function setupSlugAutoGen() {
         .slice(0, 50);
     }
   });
+}
+
+// Prefill from GitHub repo
+async function prefillFromRepo() {
+  const alertDiv = document.getElementById('submit-alert');
+  const btn = document.getElementById('prefill-btn');
+  const url = document.getElementById('f-prefill-url').value.trim();
+
+  if (!url) { alertDiv.innerHTML = '<div class="alert alert-error">Please enter a GitHub repository URL</div>'; return; }
+
+  alertDiv.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = '🔍 Fetching...';
+
+  try {
+    const data = await apiGetAuth(`/apps/prefill?repo_url=${encodeURIComponent(url)}`, getToken());
+
+    // Fill form fields
+    document.getElementById('f-name').value = data.name || '';
+    document.getElementById('f-slug').value = data.slug || '';
+    document.getElementById('f-tagline').value = data.tagline || '';
+    document.getElementById('f-description').value = data.description || '';
+    document.getElementById('f-repo-url').value = data.repo_url || '';
+    document.getElementById('f-repo-tag').value = data.repo_tag || '';
+    if (data.category) document.getElementById('f-category').value = data.category;
+    if (data.tags && data.tags.length > 0) document.getElementById('f-tags').value = data.tags.join(', ');
+
+    // Show slug conflict warning
+    if (data.slug_conflict) {
+      document.getElementById('f-slug-hint').innerHTML = '⚠️ Original slug was taken, suggested an alternative. This becomes <strong>' + esc(data.slug) + '.vibepub.dev</strong>';
+    } else {
+      document.getElementById('f-slug-hint').innerHTML = 'This becomes <strong>' + esc(data.slug) + '.vibepub.dev</strong>';
+    }
+
+    // Show warning if no tag found
+    if (!data.repo_tag) {
+      alertDiv.innerHTML = '<div class="alert alert-error">⚠️ No tags found in this repo. Please create a git tag first (e.g. <code>git tag v1.0 && git push --tags</code>).</div>';
+    }
+
+    // Show step 2, hide step 1
+    document.getElementById('submit-step1').style.display = 'none';
+    document.getElementById('submit-form').style.display = '';
+  } catch (err) {
+    alertDiv.innerHTML = `<div class="alert alert-error">${esc(err.error || 'Failed to fetch repo info')}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Fetch Repo Info';
+  }
+}
+
+function resetSubmitForm() {
+  document.getElementById('submit-step1').style.display = '';
+  document.getElementById('submit-form').style.display = 'none';
+  document.getElementById('submit-form').reset();
+  document.getElementById('submit-alert').innerHTML = '';
 }
 
 // Submit App
@@ -138,4 +194,45 @@ function esc(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+async function unlistApp(slug, name) {
+  if (!confirm(`Are you sure you want to unlist "${name}"? This will remove it from VibePub and take down ${slug}.vibepub.dev.`)) return;
+  try {
+    const res = await fetch(`/api/apps/${encodeURIComponent(slug)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${getToken()}` },
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message || 'App unlisted successfully.');
+      await loadMyApps();
+    } else {
+      alert('Failed to unlist: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function deleteAccount() {
+  if (!confirm('Are you sure you want to delete your account? This will permanently delete all your apps and data. This cannot be undone.')) return;
+  if (!confirm('This is your LAST CHANCE. Really delete everything?')) return;
+  const token = getToken();
+  try {
+    const res = await fetch('/api/auth/account', {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (res.ok) {
+      clearToken();
+      alert('Account deleted successfully.');
+      window.location.href = '/';
+    } else {
+      const data = await res.json();
+      alert('Failed to delete account: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
 }

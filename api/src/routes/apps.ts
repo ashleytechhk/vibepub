@@ -13,6 +13,93 @@ const VALID_CATEGORIES = [
   'developer', 'design', 'communication', 'other'
 ];
 
+// GET /api/apps/prefill?repo_url=... — fetch repo info from GitHub for pre-filling submission form
+apps.get('/prefill', authMiddleware, async (c) => {
+  const repoUrl = c.req.query('repo_url');
+  if (!repoUrl || !/^https:\/\/github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/?$/.test(repoUrl)) {
+    return c.json({ error: 'Please enter a valid GitHub repository URL (e.g. https://github.com/user/repo)' }, 400);
+  }
+
+  const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) return c.json({ error: 'Could not parse GitHub URL' }, 400);
+  const [, owner, repo] = match;
+  const repoName = repo.replace(/\.git$/, '');
+
+  const headers: Record<string, string> = {
+    'User-Agent': 'VibePub',
+    'Accept': 'application/vnd.github.v3+json',
+  };
+  if (c.env.GITHUB_PAT) headers['Authorization'] = `Bearer ${c.env.GITHUB_PAT}`;
+
+  // Fetch repo info and tags in parallel
+  const [repoRes, tagsRes] = await Promise.all([
+    fetch(`https://api.github.com/repos/${owner}/${repoName}`, { headers }),
+    fetch(`https://api.github.com/repos/${owner}/${repoName}/tags?per_page=1`, { headers }),
+  ]);
+
+  if (!repoRes.ok) {
+    return c.json({ error: 'Repository not found or not accessible' }, 404);
+  }
+
+  const repoData = await repoRes.json() as {
+    name: string;
+    description: string | null;
+    topics?: string[];
+    license?: { spdx_id: string } | null;
+  };
+  const tags = await tagsRes.json() as Array<{ name: string }>;
+
+  // Generate slug from repo name
+  let slug = repoName.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 50);
+
+  // Check if slug is taken, auto-suggest alternative
+  const existing = await c.env.DB.prepare('SELECT id FROM apps WHERE slug = ?').bind(slug).first();
+  if (existing) {
+    // Try appending numbers
+    for (let i = 2; i <= 20; i++) {
+      const candidate = `${slug}-${i}`.slice(0, 50);
+      const taken = await c.env.DB.prepare('SELECT id FROM apps WHERE slug = ?').bind(candidate).first();
+      if (!taken) { slug = candidate; break; }
+    }
+  }
+
+  // Map GitHub topics to a category
+  const topicCategoryMap: Record<string, string> = {
+    game: 'game', games: 'game', gaming: 'game',
+    education: 'education', learning: 'education',
+    productivity: 'productivity', tool: 'utility', utility: 'utility', tools: 'utility',
+    entertainment: 'entertainment', fun: 'entertainment',
+    social: 'social', chat: 'communication', messaging: 'communication',
+    finance: 'finance', money: 'finance',
+    health: 'health', fitness: 'health',
+    developer: 'developer', devtools: 'developer', 'developer-tools': 'developer',
+    design: 'design', ui: 'design',
+  };
+  let category = '';
+  if (repoData.topics) {
+    for (const topic of repoData.topics) {
+      if (topicCategoryMap[topic]) { category = topicCategoryMap[topic]; break; }
+    }
+  }
+
+  return c.json({
+    name: repoData.name.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    slug,
+    slug_conflict: !!existing,
+    tagline: repoData.description || '',
+    description: repoData.description || '',
+    repo_url: repoUrl.replace(/\/$/, ''),
+    repo_tag: tags[0]?.name || '',
+    category,
+    tags: (repoData.topics || []).slice(0, 10),
+  });
+});
+
 // POST /api/apps — submit new app (auth required)
 apps.post('/', authMiddleware, async (c) => {
   const developerId = c.get('developerId');
@@ -325,6 +412,42 @@ apps.get('/:slug', async (c) => {
   }
 
   return c.json({ app });
+});
+
+// DELETE /api/apps/:slug — unlist app: remove from listing + delete CF Pages project
+apps.delete('/:slug', authMiddleware, async (c) => {
+  const slug = c.req.param('slug');
+  const developerId = c.get('developerId');
+
+  // Verify app belongs to this developer
+  const app = await c.env.DB.prepare(
+    'SELECT id, name, slug FROM apps WHERE slug = ? AND developer_id = ?'
+  ).bind(slug, developerId).first<{ id: string; name: string; slug: string }>();
+
+  if (!app) {
+    return c.json({ error: 'App not found or you do not own this app' }, 404);
+  }
+
+  // Delete related data
+  await c.env.DB.prepare('DELETE FROM submissions WHERE app_id = ?').bind(app.id).run();
+  await c.env.DB.prepare('DELETE FROM apps WHERE id = ?').bind(app.id).run();
+
+  // Decrement developer app count
+  await c.env.DB.prepare(
+    'UPDATE developers SET app_count = MAX(app_count - 1, 0), updated_at = ? WHERE id = ?'
+  ).bind(new Date().toISOString(), developerId).run();
+
+  // Delete Cloudflare Pages project (fire-and-forget)
+  if (c.env.CF_ACCOUNT_ID && c.env.CF_API_TOKEN) {
+    c.executionCtx.waitUntil(
+      fetch(`https://api.cloudflare.com/client/v4/accounts/${c.env.CF_ACCOUNT_ID}/pages/projects/${slug}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${c.env.CF_API_TOKEN}` },
+      }).catch(e => console.error('CF Pages delete error:', e))
+    );
+  }
+
+  return c.json({ message: `App "${app.name}" has been unlisted and removed.` });
 });
 
 export default apps;

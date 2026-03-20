@@ -54,7 +54,23 @@
           <div class="dash-section" id="section-submit-app" style="display:none">
             <h2>➕ Submit New App</h2>
             <div id="submit-alert"></div>
-            <form id="submit-form" onsubmit="return submitApp(event)">
+
+            <!-- STEP 1: Repo URL -->
+            <div id="submit-step1">
+              <p style="color: var(--text-secondary); margin-bottom: 16px;">Paste your GitHub repository URL and we'll fetch the details for you.</p>
+              <div class="form-group">
+                <label>GitHub Repository URL <span class="required">*</span></label>
+                <input type="url" class="form-input" id="f-prefill-url" required placeholder="https://github.com/username/repo">
+              </div>
+              <button type="button" class="btn btn-primary" id="prefill-btn" onclick="prefillFromRepo()">
+                🔍 Fetch Repo Info
+              </button>
+            </div>
+
+            <!-- STEP 2: Pre-filled form (hidden until prefill) -->
+            <form id="submit-form" onsubmit="return submitApp(event)" style="display:none">
+              <p style="color: var(--text-secondary); margin-bottom: 16px;">Review the details below and edit if needed, then submit.</p>
+
               <div class="form-group">
                 <label>App Name <span class="required">*</span></label>
                 <input type="text" class="form-input" id="f-name" maxlength="50" required placeholder="My Awesome App">
@@ -64,7 +80,7 @@
               <div class="form-group">
                 <label>Slug <span class="required">*</span></label>
                 <input type="text" class="form-input" id="f-slug" maxlength="50" required placeholder="my-awesome-app" pattern="[a-z0-9][a-z0-9\-]{0,48}[a-z0-9]">
-                <div class="form-hint">URL-friendly name (lowercase letters, numbers, hyphens). This becomes <strong>my-awesome-app.vibepub.dev</strong></div>
+                <div class="form-hint" id="f-slug-hint">URL-friendly name (lowercase letters, numbers, hyphens). This becomes <strong>my-awesome-app.vibepub.dev</strong></div>
               </div>
 
               <div class="form-group">
@@ -81,8 +97,7 @@
 
               <div class="form-group">
                 <label>Repository URL <span class="required">*</span></label>
-                <input type="url" class="form-input" id="f-repo-url" required placeholder="https://github.com/username/repo">
-                <div class="form-hint">GitHub repository URL</div>
+                <input type="url" class="form-input" id="f-repo-url" readonly>
               </div>
 
               <div class="form-group">
@@ -116,10 +131,22 @@
                 <div class="form-hint">Comma-separated, max 10 tags, each max 30 characters</div>
               </div>
 
-              <button type="submit" class="btn btn-primary" id="submit-btn" style="margin-top: 8px;">
-                🚀 Submit for Review
-              </button>
+              <div style="display: flex; gap: 12px; margin-top: 8px;">
+                <button type="submit" class="btn btn-primary" id="submit-btn">
+                  🚀 Submit for Review
+                </button>
+                <button type="button" class="btn btn-outline" onclick="resetSubmitForm()">
+                  ← Change Repo
+                </button>
+              </div>
             </form>
+          </div>
+
+          <!-- DANGER ZONE -->
+          <div class="dash-section" id="section-danger-zone" style="margin-top: 48px; border-top: 1px solid #2a2a4e; padding-top: 32px;">
+            <h2 style="color: #dc2626;">⚠️ Danger Zone</h2>
+            <p style="color: #9090b0; margin-bottom: 16px;">Permanently delete your account and all associated apps and data. This cannot be undone.</p>
+            <button class="btn" style="background:#dc2626;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;" onclick="deleteAccount()">🗑️ Delete Account</button>
           </div>
         </main>
       </div>
