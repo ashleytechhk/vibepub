@@ -4,7 +4,6 @@ let myProfile = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (!requireAuth()) return;
-  setupSlugAutoGen();
   await loadProfile();
   await loadMyApps();
 });
@@ -45,7 +44,7 @@ async function loadMyApps() {
         <div class="empty-state">
           <div class="icon">📱</div>
           <p>You haven't submitted any apps yet</p>
-          <a href="#submit-app" class="btn btn-primary" style="margin-top: 12px;" onclick="showSection('submit-app', document.querySelector('.dash-nav a:nth-child(2)'))">Submit Your First App</a>
+          <p style="margin-top: 8px; color: var(--text-muted); font-size: 0.9rem;">App submissions are temporarily closed. Check back soon!</p>
         </div>
       `;
       return;

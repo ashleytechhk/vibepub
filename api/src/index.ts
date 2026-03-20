@@ -25,19 +25,29 @@ app.use('*', async (c, next) => {
         headers: c.req.raw.headers,
       });
 
-      // Inject GA4 into HTML responses
+      // Inject VibePub header bar + SEO + GA4 into HTML responses
       const contentType = resp.headers.get('content-type') || '';
       if (contentType.includes('text/html')) {
         const html = await resp.text();
-        const ga4Snippet = `<!-- VibePub Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-58GRDE9E88"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-58GRDE9E88',{page_title:'${subdomain}',content_group:'app'});</script>`;
-        const injected = html.includes('<head>')
-          ? html.replace('<head>', '<head>\n' + ga4Snippet)
-          : ga4Snippet + html;
+
+        // Look up app + developer info from D1
+        const appData = await c.env.DB.prepare(`
+          SELECT a.name, a.tagline, a.description, a.tags, a.repo_url, a.category,
+                 a.ai_description, a.ai_faq, a.homepage_url, a.slug,
+                 d.display_name AS developer_name, d.github_username, d.avatar_url AS developer_avatar
+          FROM apps a LEFT JOIN developers d ON a.developer_id = d.id
+          WHERE a.slug = ? AND a.status IN ('published', 'approved')
+        `).bind(subdomain).first<{
+          name: string; tagline: string; description: string; tags: string;
+          repo_url: string; category: string; ai_description: string; ai_faq: string;
+          homepage_url: string; slug: string; developer_name: string;
+          github_username: string; developer_avatar: string;
+        }>();
+
+        const injectedHtml = injectVibePubFrame(html, subdomain, appData);
         const newHeaders = new Headers(resp.headers);
         newHeaders.delete('content-length');
-        return new Response(injected, { status: resp.status, headers: newHeaders });
+        return new Response(injectedHtml, { status: resp.status, headers: newHeaders });
       }
 
       return new Response(resp.body, {
@@ -51,6 +61,115 @@ app.use('*', async (c, next) => {
 
   await next();
 });
+
+function escHtml(str: string): string {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function injectVibePubFrame(
+  html: string,
+  subdomain: string,
+  appData: {
+    name: string; tagline: string; description: string; tags: string;
+    repo_url: string; category: string; ai_description: string; ai_faq: string;
+    homepage_url: string; slug: string; developer_name: string;
+    github_username: string; developer_avatar: string;
+  } | null
+): string {
+  const appName = appData?.name || subdomain;
+  const appDesc = appData?.ai_description || appData?.description || appData?.tagline || '';
+  const repoUrl = appData?.repo_url || '';
+  // Extract original repo owner from repo_url (e.g. "pandao" from "https://github.com/pandao/editor.md")
+  const repoOwner = repoUrl ? (repoUrl.match(/github\.com\/([^\/]+)/)?.[1] || '') : '';
+  const devName = repoOwner || appData?.developer_name || appData?.github_username || '';
+  const ghUsername = repoOwner || appData?.github_username || '';
+  const tags = appData?.tags ? (() => { try { return JSON.parse(appData.tags) as string[]; } catch { return []; } })() : [];
+  const faq = appData?.ai_faq ? (() => { try { return JSON.parse(appData.ai_faq) as { q: string; a: string }[]; } catch { return []; } })() : [];
+
+  // --- GA4 ---
+  const ga4 = `<script async src="https://www.googletagmanager.com/gtag/js?id=G-58GRDE9E88"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-58GRDE9E88',{page_title:'${subdomain}',content_group:'app'});</script>`;
+
+  // --- SEO meta tags ---
+  const seoTitle = `${escHtml(appName)} — Free Online Tool | VibePub`;
+  const seoDesc = escHtml(appDesc.slice(0, 160)) || `Use ${escHtml(appName)} for free online. No signup, no download. Open source.`;
+  const canonicalUrl = `https://${subdomain}.vibepub.dev`;
+  const seoMeta = `<title>${seoTitle}</title>
+<meta name="description" content="${seoDesc}">
+<link rel="canonical" href="${canonicalUrl}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escHtml(appName)} — VibePub">
+<meta property="og:description" content="${seoDesc}">
+<meta property="og:url" content="${canonicalUrl}">
+<meta property="og:site_name" content="VibePub">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="${escHtml(appName)} — VibePub">
+<meta name="twitter:description" content="${seoDesc}">`;
+
+  // --- Schema.org JSON-LD ---
+  const schemaApp: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: appName,
+    description: appDesc || `Free online ${appName}`,
+    url: canonicalUrl,
+    applicationCategory: appData?.category || 'Utility',
+    operatingSystem: 'Any',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    isAccessibleForFree: true,
+  };
+  if (tags.length) schemaApp.keywords = tags.join(', ');
+  if (devName) {
+    schemaApp.author = { '@type': 'Person', name: devName, ...(ghUsername ? { url: `https://github.com/${ghUsername}` } : {}) };
+  }
+  let schemaLd = `<script type="application/ld+json">${JSON.stringify(schemaApp)}</script>`;
+
+  // FAQ schema
+  if (faq.length > 0) {
+    const faqSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faq.map(item => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: { '@type': 'Answer', text: item.a },
+      })),
+    };
+    schemaLd += `\n<script type="application/ld+json">${JSON.stringify(faqSchema)}</script>`;
+  }
+
+  // --- Footer bar ---
+  const devLink = devName ? `<a href="https://github.com/${escHtml(ghUsername)}" target="_blank" style="color:#656d76;text-decoration:none;">${escHtml(devName)}</a>` : 'Unknown';
+  const repoLink = repoUrl ? `<a href="${escHtml(repoUrl)}" target="_blank" style="color:#656d76;text-decoration:none;">${escHtml(repoUrl)}</a>` : '';
+  const footerBar = `<div id="vibepub-footer" style="position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#fff;border-top:1px solid #e5e5e5;padding:6px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#656d76;display:flex;align-items:center;justify-content:center;gap:0;letter-spacing:0.01em;">
+Hosted by <a href="https://vibepub.dev" style="color:#656d76;text-decoration:none;margin-left:4px;">VibePub.dev</a>${repoLink ? `&nbsp; - &nbsp;GitHub Repo at&nbsp;${repoLink}` : ''}&nbsp; - &nbsp;Developed by&nbsp;${devLink}
+</div>`;
+
+  // --- Inject into HTML ---
+  const headContent = `\n<!-- VibePub SEO + Analytics -->\n${ga4}\n${seoMeta}\n${schemaLd}\n`;
+  let result = html;
+
+  // Replace existing <title> if present, inject SEO into <head>
+  if (result.includes('<head>')) {
+    result = result.replace('<head>', '<head>' + headContent);
+  } else if (result.includes('<HEAD>')) {
+    result = result.replace('<HEAD>', '<HEAD>' + headContent);
+  } else {
+    result = headContent + result;
+  }
+
+  // Inject footer bar before </body>
+  if (result.includes('</body>')) {
+    result = result.replace('</body>', footerBar + '</body>');
+  } else if (result.includes('</BODY>')) {
+    result = result.replace('</BODY>', footerBar + '</BODY>');
+  } else {
+    result = result + footerBar;
+  }
+
+  return result;
+}
 
 // CORS
 app.use('*', cors({

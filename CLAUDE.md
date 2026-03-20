@@ -25,6 +25,39 @@ MINIMAX_VOICE_VOLUME="2.0" \
 - **如果 TTS fail** — retry 一次。仍然 fail 就講「語音生成失敗」然後繼續文字回覆，唔好靜靜雞 skip
 - **Deploy 之後都要講** — 「搞掂喇, 已經 deploy 咗」
 
+## ⭐ 當前策略：Phase 1b — Self-Seed（2026-03-20 起）
+
+### 方向
+**自己手動加 app 上嚟攞流量先，Skip 所有用戶註冊相關功能。**
+
+### 點解
+- 用戶註冊有大量 edge case（spam、驗證、error handling）
+- 自己加 = 質量可控，唔 work 就刪
+- 淨用簡單 pure HTML/CSS/JS app（static files）
+- 先有 SEO 排名 + 流量，之後先開放用戶註冊
+
+### 而家要做嘅嘢
+1. **寫個 Admin Script** — 方便手動加 app 入 D1（唔使人手跑 SQL）
+   - 輸入：GitHub repo URL
+   - 自動：clone → 部署到 CF Pages → 寫入 D1 → SEO 優化
+2. **SEO/GEO 優化每個 App Page** — title、description、Schema.org JSON-LD、FAQ、Open Graph
+3. **揀 20-30 個高搜尋量 pure HTML open source app** — 參考 `internal_docs/keyword-research.md`
+4. **手動 Deploy 上 Cloudflare Pages** — `wrangler pages deploy`
+
+### 唔使做（延後到 Phase 2）
+- ❌ 用戶註冊 / login 改善
+- ❌ GitHub repo owner 驗證
+- ❌ Rate limiting / anti-spam
+- ❌ Claim App 功能
+- ❌ Build pipeline 自動化（手動就得）
+- ❌ Email 通知
+
+### 參考文件
+- `internal_docs/seed-strategy.md` — 完整 seed 策略 + Phase 0 定義
+- `internal_docs/keyword-research.md` — 關鍵字研究 + Top 20 seed app 推薦
+- `internal_docs/ai-recommendation-research.md` — AI 推薦場景分析
+- `internal_docs/changelog.md` — 開發歷史 + TODO list
+
 ## Commands
 
 ```bash

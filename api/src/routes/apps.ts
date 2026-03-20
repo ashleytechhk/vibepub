@@ -17,6 +17,13 @@ const VALID_CATEGORIES = [
 
 // GET /api/apps/prefill?repo_url=... — fetch repo info from GitHub for pre-filling submission form
 apps.get('/prefill', authMiddleware, async (c) => {
+  // Only admin can use prefill during self-seed phase
+  const developerId = c.get('developerId');
+  const dev = await c.env.DB.prepare(`SELECT email FROM developers WHERE id = ?`).bind(developerId).first<{ email: string }>();
+  if (!dev || dev.email !== ADMIN_EMAIL) {
+    return c.json({ error: 'App submissions are temporarily closed. Check back soon!' }, 503);
+  }
+
   const repoUrl = c.req.query('repo_url');
   if (!repoUrl || !/^https:\/\/github\.com\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/?$/.test(repoUrl)) {
     return c.json({ error: 'Please enter a valid GitHub repository URL (e.g. https://github.com/user/repo)' }, 400);
@@ -102,9 +109,17 @@ apps.get('/prefill', authMiddleware, async (c) => {
   });
 });
 
+const ADMIN_EMAIL = 'nowisgame@gmail.com';
+
 // POST /api/apps — submit new app (auth required)
 apps.post('/', authMiddleware, async (c) => {
   const developerId = c.get('developerId');
+
+  // Only admin can submit during self-seed phase
+  const dev = await c.env.DB.prepare(`SELECT email FROM developers WHERE id = ?`).bind(developerId).first<{ email: string }>();
+  if (!dev || dev.email !== ADMIN_EMAIL) {
+    return c.json({ error: 'App submissions are temporarily closed. Check back soon!' }, 503);
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -326,13 +341,13 @@ apps.post('/', authMiddleware, async (c) => {
           }
         } catch (e) { console.error('AI content error:', e); }
 
-        // Send email
-        if (dev?.email) {
-          try {
-            const emailOpts = buildSubmissionApprovedEmail(name, slug);
-            await sendEmail(c.env.RESEND_API_KEY, { ...emailOpts, to: dev.email });
-          } catch (e) { console.error('Email send error:', e); }
-        }
+        // Send email (disabled during self-seed phase)
+        // if (dev?.email) {
+        //   try {
+        //     const emailOpts = buildSubmissionApprovedEmail(name, slug);
+        //     await sendEmail(c.env.RESEND_API_KEY, { ...emailOpts, to: dev.email });
+        //   } catch (e) { console.error('Email send error:', e); }
+        // }
       } else {
         await c.env.DB.prepare(
           `UPDATE submissions SET status = 'rejected', audit_result = ?, reject_reason = ?, completed_at = ? WHERE id = ?`
@@ -345,17 +360,17 @@ apps.post('/', authMiddleware, async (c) => {
           `UPDATE apps SET status = 'rejected', updated_at = ? WHERE id = ?`
         ).bind(completedAt, appId).run();
 
-        // Send rejection email
-        if (dev?.email) {
-          try {
-            const emailOpts = buildSubmissionRejectedEmail(
-              name,
-              result.error || 'Build checks failed',
-              formatChecklist(result.checklist)
-            );
-            await sendEmail(c.env.RESEND_API_KEY, { ...emailOpts, to: dev.email });
-          } catch (e) { console.error('Email send error:', e); }
-        }
+        // Send rejection email (disabled during self-seed phase)
+        // if (dev?.email) {
+        //   try {
+        //     const emailOpts = buildSubmissionRejectedEmail(
+        //       name,
+        //       result.error || 'Build checks failed',
+        //       formatChecklist(result.checklist)
+        //     );
+        //     await sendEmail(c.env.RESEND_API_KEY, { ...emailOpts, to: dev.email });
+        //   } catch (e) { console.error('Email send error:', e); }
+        // }
       }
     } catch (err: any) {
       console.error('Build pipeline error:', err);
