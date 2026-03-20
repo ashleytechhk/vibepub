@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # One-liner — 直接用，唔使 source 任何嘢
 MINIMAX_GROUP_ID=$(grep MINIMAX_GROUP_ID /Users/shumkwan/clawd/shared/credentials/api-keys.env | cut -d= -f2 | tr -d '"') \
 MINIMAX_API_KEY=$(grep MINIMAX_API_KEY /Users/shumkwan/clawd/shared/credentials/api-keys.env | cut -d= -f2 | tr -d '"') \
-MINIMAX_VOICE_ID="moss_audio_e39b563e-0bbd-11f0-b576-92cb5d429e3c" \
+MINIMAX_VOICE_ID="Cantonese_Articulate_commentator_vv2" \
 MINIMAX_MODEL="speech-2.6-turbo" \
 MINIMAX_VOICE_SPEED="0.9" \
 MINIMAX_VOICE_VOLUME="2.0" \
@@ -39,10 +39,10 @@ MINIMAX_VOICE_VOLUME="2.0" \
 ### 而家要做嘅嘢
 1. **寫個 Admin Script** — 方便手動加 app 入 D1（唔使人手跑 SQL）
    - 輸入：GitHub repo URL
-   - 自動：clone → 部署到 CF Pages → 寫入 D1 → SEO 優化
+   - 自動：clone → 上傳去 R2 → 寫入 D1 → SEO 優化
 2. **SEO/GEO 優化每個 App Page** — title、description、Schema.org JSON-LD、FAQ、Open Graph
 3. **揀 20-30 個高搜尋量 pure HTML open source app** — 參考 `internal_docs/keyword-research.md`
-4. **手動 Deploy 上 Cloudflare Pages** — `wrangler pages deploy`
+4. **手動 Deploy 上 R2** — `./scripts/deploy-to-r2.sh <repo_url> <slug>`
 
 ### 唔使做（延後到 Phase 2）
 - ❌ 用戶註冊 / login 改善
@@ -70,6 +70,9 @@ npm run deploy                       # Deploy to production (Cloudflare Workers)
 # Database migrations
 npm run db:migrate:local             # Run migrations against local D1
 npm run db:migrate:remote            # Run migrations against remote D1
+
+# Deploy an app to R2
+./scripts/deploy-to-r2.sh <repo_url> <slug> [tag]   # Clone repo + upload to R2 bucket
 ```
 
 There are no automated tests in this codebase. Manually test via the local dev server and the Cloudflare dashboard.
@@ -83,7 +86,7 @@ There are no automated tests in this codebase. Manually test via the local dev s
 Everything runs on **Cloudflare Workers** (serverless edge). A single worker handles:
 - API requests (`/api/*`)
 - Static asset serving (the `/web` HTML/JS/CSS frontend)
-- Subdomain proxying — `*.vibepub.dev` requests are intercepted and proxied to the corresponding Cloudflare Pages project
+- Subdomain routing — `*.vibepub.dev` requests are intercepted and served from R2 bucket (`APP_BUCKET`)
 
 ### Stack
 
@@ -94,7 +97,7 @@ Everything runs on **Cloudflare Workers** (serverless edge). A single worker han
 | Frontend | Vanilla JS + plain HTML/CSS (no framework) |
 | Auth | GitHub OAuth → JWT (HS256, 7-day expiry) |
 | Email | Resend API |
-| Hosting | Cloudflare Workers (API) + Cloudflare Pages (submitted apps) |
+| Hosting | Cloudflare Workers (API) + R2 Object Storage (submitted apps) |
 
 ### Directory Layout
 
@@ -112,6 +115,7 @@ api/src/
     auth.ts         # JWT sign/verify + auth middleware (Web Crypto API)
   lib/
     build-pipeline.ts  # Automated validation checklist (repo checks, file limits, etc.)
+    deploy.ts          # Deploy app files from GitHub to R2 bucket
     email.ts           # Resend-powered transactional emails
 
 api/migrations/
@@ -132,7 +136,7 @@ web/
 1. Developer POSTs to `/api/apps` with repo URL + tag
 2. Build pipeline runs asynchronously via `executionCtx.waitUntil()` (fire-and-forget)
 3. `build-pipeline.ts` validates via GitHub API (no cloning): license, `index.html`, file count/size limits, no committed `node_modules`, no suspicious files
-4. On approval: deploys to a Cloudflare Pages project → live at `slug.vibepub.dev`
+4. On approval: uploads files to R2 bucket under `apps/{slug}/` → live at `slug.vibepub.dev`
 5. Email sent to developer with approval/rejection details
 
 **Auth Flow:**
@@ -143,20 +147,21 @@ web/
 
 **Subdomain Routing:**
 - Worker intercepts all `*.vibepub.dev` requests before asset serving
-- Proxies to corresponding Cloudflare Pages project for that app slug
+- Serves files from R2 bucket (`APP_BUCKET`) under `apps/{slug}/` path
 
 ### Environment / Secrets
 
 Local secrets go in `.dev.vars` (not committed). Production secrets set via `wrangler secret put`:
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` — GitHub OAuth app
 - `JWT_SECRET` — JWT signing key
-- `CF_ACCOUNT_ID`, `CF_API_TOKEN` — Cloudflare API access (for Pages deployment)
+- `CF_ACCOUNT_ID`, `CF_API_TOKEN` — Cloudflare API access
 - `GITHUB_PAT` — GitHub PAT for repo inspection
 - `RESEND_API_KEY` — Resend email service
 
 The `wrangler.toml` binds:
 - `DB` → D1 database (`vibepub-db`)
 - `ASSETS` → static files from `./web`
+- `APP_BUCKET` → R2 bucket (`vibepub-apps`) for submitted app files
 
 ## Internal Docs
 

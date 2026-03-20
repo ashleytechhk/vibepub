@@ -9,26 +9,78 @@ import build from './routes/build';
 
 const app = new Hono<{ Bindings: Env }>();
 
-// Subdomain routing — proxy *.vibepub.dev to corresponding CF Pages project
+// MIME type mapping for R2-served files
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.htm': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.xml': 'application/xml',
+  '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
+  '.map': 'application/json',
+  '.mp3': 'audio/mpeg',
+  '.mp4': 'video/mp4',
+  '.wav': 'audio/wav',
+  '.pdf': 'application/pdf',
+  '.zip': 'application/zip',
+  '.wasm': 'application/wasm',
+};
+
+function getMimeType(path: string): string {
+  const ext = path.substring(path.lastIndexOf('.')).toLowerCase();
+  return MIME_TYPES[ext] || 'application/octet-stream';
+}
+
+// Subdomain routing — serve app files from R2 bucket
 app.use('*', async (c, next) => {
   const hostname = new URL(c.req.url).hostname;
 
-  // Check if this is a subdomain request (e.g. hello-vibepub.vibepub.dev)
+  // Check if this is a subdomain request (e.g. qr-generator.vibepub.dev)
   if (hostname.endsWith('.vibepub.dev') && hostname !== 'vibepub.dev') {
     const subdomain = hostname.replace('.vibepub.dev', '');
+    let pathname = new URL(c.req.url).pathname;
 
-    // Proxy to the corresponding CF Pages project
-    const pagesUrl = `https://${subdomain}.pages.dev${new URL(c.req.url).pathname}`;
+    // Default to index.html
+    if (pathname === '/' || pathname === '') {
+      pathname = '/index.html';
+    }
+
+    // R2 key: apps/{slug}/{path}
+    const r2Key = `apps/${subdomain}${pathname}`;
+
     try {
-      const resp = await fetch(pagesUrl, {
-        method: c.req.method,
-        headers: c.req.raw.headers,
-      });
+      let object = await c.env.APP_BUCKET.get(r2Key);
 
-      // Inject VibePub header bar + SEO + GA4 into HTML responses
-      const contentType = resp.headers.get('content-type') || '';
+      // If not found and no extension, try with /index.html (directory-style)
+      if (!object && !pathname.includes('.')) {
+        const dirKey = `apps/${subdomain}${pathname.replace(/\/$/, '')}/index.html`;
+        object = await c.env.APP_BUCKET.get(dirKey);
+      }
+
+      if (!object) {
+        return c.json({ error: `File not found: ${pathname}` }, 404);
+      }
+
+      const contentType = getMimeType(pathname);
+
+      // Inject VibePub frame + SEO into HTML responses
       if (contentType.includes('text/html')) {
-        const html = await resp.text();
+        const html = await object.text();
 
         // Look up app + developer info from D1
         const appData = await c.env.DB.prepare(`
@@ -45,16 +97,25 @@ app.use('*', async (c, next) => {
         }>();
 
         const injectedHtml = injectVibePubFrame(html, subdomain, appData);
-        const newHeaders = new Headers(resp.headers);
-        newHeaders.delete('content-length');
-        return new Response(injectedHtml, { status: resp.status, headers: newHeaders });
+        return new Response(injectedHtml, {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=3600',
+          },
+        });
       }
 
-      return new Response(resp.body, {
-        status: resp.status,
-        headers: resp.headers,
+      // Non-HTML: serve directly from R2
+      return new Response(object.body, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400',
+          'ETag': object.httpEtag,
+        },
       });
-    } catch {
+    } catch (err) {
       return c.json({ error: `App "${subdomain}" not found or unavailable` }, 502);
     }
   }

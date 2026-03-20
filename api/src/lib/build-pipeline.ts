@@ -1,7 +1,7 @@
 /**
  * VibePub Build Pipeline
  *
- * Flow: Submit → Checklist → Fetch Files → Deploy CF Pages → Publish
+ * Flow: Submit → Checklist → Fetch Files → Upload to R2 → Publish
  * AI security scan is Phase 2 — this is the basic structural checklist.
  */
 
@@ -170,9 +170,9 @@ export async function runBuildPipeline(ctx: BuildContext): Promise<BuildResult> 
     });
 
     // ── All checks passed! ─────────────────────────────
-    // Deployment is handled by a local script using `wrangler pages deploy`.
-    // The Worker marks the submission as 'approved' and the deploy script
-    // picks it up, clones the repo, deploys to CF Pages, and updates the DB.
+    // Deployment uploads files to R2 bucket (APP_BUCKET) under apps/{slug}/.
+    // The Worker handles this automatically after approval, or use
+    // ./scripts/deploy-to-r2.sh for manual deploys.
     return { success: true, checklist };
 
   } catch (err: any) {

@@ -4,7 +4,7 @@ import { authMiddleware } from '../middleware/auth';
 import { runBuildPipeline, formatChecklist } from '../lib/build-pipeline';
 import { sendEmail, buildSubmissionApprovedEmail, buildSubmissionRejectedEmail } from '../lib/email';
 import { fetchReadme, generateAiContent } from '../lib/ai-content';
-import { deployToCFPages } from '../lib/deploy';
+import { deployToR2, deleteFromR2 } from '../lib/deploy';
 
 const apps = new Hono<{ Bindings: Env; Variables: { developerId: string } }>();
 
@@ -286,17 +286,16 @@ apps.post('/', authMiddleware, async (c) => {
           `UPDATE submissions SET status = 'approved', audit_result = ?, completed_at = ? WHERE id = ?`
         ).bind(JSON.stringify(result.checklist), completedAt, submissionId).run();
 
-        // Auto-deploy to CF Pages
+        // Auto-deploy to R2
         let deployed = false;
         try {
-          const deployResult = await deployToCFPages({
+          const deployResult = await deployToR2({
             owner: buildCtx.owner,
             repo: buildCtx.repo,
             tag: buildCtx.tag,
             slug,
             githubToken: c.env.GITHUB_PAT,
-            cfAccountId: c.env.CF_ACCOUNT_ID,
-            cfApiToken: c.env.CF_API_TOKEN,
+            appBucket: c.env.APP_BUCKET,
           });
 
           if (deployResult.success) {
@@ -308,7 +307,7 @@ apps.post('/', authMiddleware, async (c) => {
             await c.env.DB.prepare(
               `UPDATE submissions SET status = 'completed', completed_at = ? WHERE id = ?`
             ).bind(publishedAt, submissionId).run();
-            console.log(`Deployed ${slug} to CF Pages`);
+            console.log(`Deployed ${slug} to R2`);
           } else {
             console.error(`Deploy failed for ${slug}:`, deployResult.error);
             await c.env.DB.prepare(
@@ -484,7 +483,7 @@ apps.get('/:slug', async (c) => {
   return c.json({ app });
 });
 
-// DELETE /api/apps/:slug — unlist app: remove from listing + delete CF Pages project
+// DELETE /api/apps/:slug — unlist app: remove from listing + delete R2 files
 apps.delete('/:slug', authMiddleware, async (c) => {
   const slug = c.req.param('slug');
   const developerId = c.get('developerId');
@@ -507,15 +506,10 @@ apps.delete('/:slug', authMiddleware, async (c) => {
     'UPDATE developers SET app_count = MAX(app_count - 1, 0), updated_at = ? WHERE id = ?'
   ).bind(new Date().toISOString(), developerId).run();
 
-  // Delete Cloudflare Pages project (fire-and-forget)
-  if (c.env.CF_ACCOUNT_ID && c.env.CF_API_TOKEN) {
-    c.executionCtx.waitUntil(
-      fetch(`https://api.cloudflare.com/client/v4/accounts/${c.env.CF_ACCOUNT_ID}/pages/projects/${slug}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${c.env.CF_API_TOKEN}` },
-      }).catch(e => console.error('CF Pages delete error:', e))
-    );
-  }
+  // Delete R2 files (fire-and-forget)
+  c.executionCtx.waitUntil(
+    deleteFromR2(c.env.APP_BUCKET, slug).catch(e => console.error('R2 delete error:', e))
+  );
 
   return c.json({ message: `App "${app.name}" has been unlisted and removed.` });
 });

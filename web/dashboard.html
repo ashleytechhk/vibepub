@@ -50,14 +50,79 @@
             </div>
           </div>
 
-          <!-- SUBMIT APP (temporarily disabled) -->
+          <!-- SUBMIT APP -->
           <div class="dash-section" id="section-submit-app" style="display:none">
             <h2>➕ Submit New App</h2>
-            <div class="empty-state" style="padding: 48px 24px;">
-              <div class="icon" style="font-size: 3rem;">🚧</div>
-              <h3 style="margin: 16px 0 8px; color: var(--text-primary);">Coming Soon</h3>
-              <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">App submissions are temporarily closed while we improve the platform. Check back soon!</p>
+            <div id="submit-alert"></div>
+
+            <!-- STEP 1: Repo URL -->
+            <div id="submit-step1">
+              <p style="color: var(--text-secondary); margin-bottom: 16px;">Paste your GitHub repository URL and we'll fetch the details for you.</p>
+              <div class="form-group">
+                <label>GitHub Repository URL <span class="required">*</span></label>
+                <input type="url" class="form-input" id="f-prefill-url" required placeholder="https://github.com/username/repo">
+              </div>
+              <button type="button" class="btn btn-primary" id="prefill-btn" onclick="prefillFromRepo()">
+                🔍 Fetch Repo Info
+              </button>
             </div>
+
+            <!-- STEP 2: Pre-filled form (hidden until prefill) -->
+            <form id="submit-form" onsubmit="return submitApp(event)" style="display:none">
+              <p style="color: var(--text-secondary); margin-bottom: 16px;">Review the details below and edit if needed, then submit.</p>
+
+              <div class="form-group">
+                <label>App Name <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-name" maxlength="50" required placeholder="My Awesome App">
+                <div class="form-hint">Max 50 characters</div>
+              </div>
+
+              <div class="form-group">
+                <label>Slug <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-slug" maxlength="50" required placeholder="my-awesome-app" pattern="[a-z0-9][a-z0-9\-]{0,48}[a-z0-9]">
+                <div class="form-hint" id="f-slug-hint">URL-friendly name (lowercase letters, numbers, hyphens). This becomes <strong>my-awesome-app.vibepub.dev</strong></div>
+              </div>
+
+              <div class="form-group">
+                <label>Tagline <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-tagline" maxlength="100" required placeholder="A short description of your app">
+                <div class="form-hint">Max 100 characters</div>
+              </div>
+
+              <div class="form-group">
+                <label>Description <span class="required">*</span></label>
+                <textarea class="form-textarea" id="f-description" maxlength="2000" required placeholder="Tell users what your app does..."></textarea>
+                <div class="form-hint">Max 2000 characters</div>
+              </div>
+
+              <div class="form-group">
+                <label>Repository URL <span class="required">*</span></label>
+                <input type="url" class="form-input" id="f-repo-url" readonly>
+              </div>
+
+              <div class="form-group">
+                <label>Repository Tag <span class="required">*</span></label>
+                <input type="text" class="form-input" id="f-repo-tag" required placeholder="v1.0">
+                <div class="form-hint">Git tag to build from (e.g. v1.0, v2.0.1)</div>
+              </div>
+
+              <div class="form-group">
+                <label>Tags</label>
+                <input type="text" class="form-input" id="f-tags" placeholder="web, tool, ai, productivity, game">
+                <div class="form-hint">Comma-separated, max 10 tags, each max 30 characters. Used for browsing and AI discovery.</div>
+              </div>
+
+              <input type="hidden" id="f-category" value="">
+
+              <div style="display: flex; gap: 12px; margin-top: 8px;">
+                <button type="submit" class="btn btn-primary" id="submit-btn">
+                  🚀 Submit for Review
+                </button>
+                <button type="button" class="btn btn-outline" onclick="resetSubmitForm()">
+                  ← Change Repo
+                </button>
+              </div>
+            </form>
           </div>
 
           <!-- DANGER ZONE -->

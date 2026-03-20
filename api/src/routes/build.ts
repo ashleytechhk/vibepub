@@ -9,7 +9,7 @@ import { Hono } from 'hono';
 import { Env } from '../types';
 import { runBuildPipeline, formatChecklist, type BuildResult } from '../lib/build-pipeline';
 import { fetchReadme, generateAiContent } from '../lib/ai-content';
-import { deployToCFPages } from '../lib/deploy';
+import { deployToR2 } from '../lib/deploy';
 
 const build = new Hono<{ Bindings: Env }>();
 
@@ -133,7 +133,7 @@ build.get('/:submissionId', async (c) => {
   });
 });
 
-// POST /api/build/deploy/:slug — manually deploy an approved app to CF Pages
+// POST /api/build/deploy/:slug — manually deploy an approved app to R2
 build.post('/deploy/:slug', async (c) => {
   const slug = c.req.param('slug');
 
@@ -147,14 +147,13 @@ build.post('/deploy/:slug', async (c) => {
   if (!match) return c.json({ error: 'Invalid repo URL' }, 400);
   const [, owner, repo] = match;
 
-  const deployResult = await deployToCFPages({
+  const deployResult = await deployToR2({
     owner,
     repo: repo.replace(/\.git$/, ''),
     tag: app.repo_tag,
     slug: app.slug,
     githubToken: c.env.GITHUB_PAT,
-    cfAccountId: c.env.CF_ACCOUNT_ID,
-    cfApiToken: c.env.CF_API_TOKEN,
+    appBucket: c.env.APP_BUCKET,
   });
 
   if (!deployResult.success) {
